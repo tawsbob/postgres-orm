@@ -150,23 +150,27 @@ export class SchemaParser {
       if (!line || line.startsWith('//')) return;
 
       // Match for both array syntax and 'all' string syntax
-      const privilegeMatch = line.match(/privileges:\s*(?:\["([^"]+)"(?:,\s*"([^"]+)")*\]|"([^"]+)")\s+on\s+(\w+)/);
+      const privilegeMatch = line.match(/privileges:\s*(?:\[(.*?)\]|"([^"]+)")\s+on\s+(\w+)/);
+      if (!privilegeMatch && line.includes('privileges:')) {
+        throw new Error('Invalid role definition');
+      }
+      
       if (privilegeMatch) {
         let privs: Privilege[] = [];
         
         // Check if it's the 'all' syntax
-        if (privilegeMatch[3] === 'all') {
+        if (privilegeMatch[2] === 'all') {
           privs = ['select', 'insert', 'update', 'delete'];
-        } else {
+        } else if (privilegeMatch[1]) {
           // Process array privileges
-          for (let i = 1; i < 3; i++) {
-            if (privilegeMatch[i] && !privilegeMatch[i].includes('all')) {
-              privs.push(privilegeMatch[i].toLowerCase() as Privilege);
-            }
-          }
+          const privilegesArray = privilegeMatch[1].split(',')
+            .map(p => p.trim().replace(/"/g, ''))
+            .filter(Boolean);
+          
+          privs = privilegesArray as Privilege[];
         }
 
-        const model = privilegeMatch[4];
+        const model = privilegeMatch[3];
         
         privileges.push({
           privileges: privs,
@@ -174,6 +178,10 @@ export class SchemaParser {
         });
       }
     });
+
+    if (privileges.length === 0) {
+      throw new Error('Invalid role definition');
+    }
 
     return { name, privileges };
   }
@@ -306,6 +314,15 @@ export class SchemaParser {
     if (!content) {
       throw new Error('Schema path or file content is required');
     }
+    
+    // Reset schema before parsing
+    this.schema = {
+      models: [],
+      enums: [],
+      extensions: [],
+      roles: []
+    };
+    
     // Parse extensions
     const extensionRegex = /extension\s+([\w-]+)/g;
     let extensionMatch;
@@ -327,12 +344,11 @@ export class SchemaParser {
       this.schema.roles.push(this.parseRole(roleMatch[0]));
     }
 
-    // Parse models by finding the bounds of each model definition
-    const modelMatches = content.match(/model\s+\w+\s*{[\s\S]+?^}/gm);
-    if (modelMatches) {
-      for (const modelText of modelMatches) {
-        this.schema.models.push(this.parseModel(modelText));
-      }
+    // Parse models
+    const modelRegex = /model\s+\w+\s*{[^}]+}/gs;
+    let modelMatch;
+    while ((modelMatch = modelRegex.exec(content)) !== null) {
+      this.schema.models.push(this.parseModel(modelMatch[0]));
     }
 
     return this.schema;
