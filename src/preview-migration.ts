@@ -183,6 +183,8 @@ function parseCommandLineArgs(): { schemaPath: string; options: MigrationPreview
       options.includeRLS = false;
     } else if (arg === '--no-roles') {
       options.includeRoles = false;
+    } else if (arg === '--no-policies') {
+      options.includePolicies = false;
     } else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -221,6 +223,7 @@ Options:
   --no-indexes            Don't include indexes
   --no-rls                Don't include row level security
   --no-roles              Don't include roles
+  --no-policies           Don't include policies
   
   -h, --help              Show this help information
 

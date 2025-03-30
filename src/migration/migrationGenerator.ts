@@ -55,14 +55,15 @@ export class MigrationGenerator {
       includeConstraints = true,
       includeIndexes = true,
       includeRLS = true,
-      includeRoles = true
+      includeRoles = true,
+      includePolicies = true
     } = options;
 
     const steps: MigrationStep[] = [];
     const timestamp = new Date().toISOString();
 
     // If all options are false, return empty migration
-    if (!includeExtensions && !includeEnums && !includeTables && !includeRoles && !includeConstraints && !includeIndexes && !includeRLS) {
+    if (!includeExtensions && !includeEnums && !includeTables && !includeRoles && !includeConstraints && !includeIndexes && !includeRLS && !includePolicies) {
       return {
         version: this.generateVersion(timestamp),
         description: 'Empty migration',
@@ -154,6 +155,22 @@ export class MigrationGenerator {
               name: `rls_${model.name}_${index}`,
               sql,
               rollbackSql: SQLGenerator.generateDisableRLSSQL(model, schemaName)
+            });
+          });
+        }
+
+        // Add policies
+        if (includePolicies && model.policies && model.policies.length > 0) {
+          model.policies.forEach(policy => {
+            const policyCreateSql = SQLGenerator.generateCreatePolicySQL(model, policy, schemaName);
+            const policyDropSql = SQLGenerator.generateDropPolicySQL(model, policy, schemaName);
+            
+            steps.push({
+              type: 'create',
+              objectType: 'policy',
+              name: `policy_${model.name}_${policy.name}`,
+              sql: policyCreateSql,
+              rollbackSql: policyDropSql
             });
           });
         }

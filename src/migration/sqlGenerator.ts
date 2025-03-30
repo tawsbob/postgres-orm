@@ -1,4 +1,4 @@
-import { Model, Enum, Field, Relation, Role } from '../parser/types';
+import { Model, Enum, Field, Relation, Role, Policy } from '../parser/types';
 
 export class SQLGenerator {
   private static readonly DEFAULT_SCHEMA = 'public';
@@ -216,5 +216,28 @@ END $$;`);
 
   static generateDropRoleSQL(role: Role, schemaName: string = this.DEFAULT_SCHEMA): string[] {
     return [`DROP ROLE IF EXISTS "${role.name}";`];
+  }
+
+  static generateCreatePolicySQL(
+    model: Model, 
+    policy: Policy,
+    schemaName: string = this.DEFAULT_SCHEMA
+  ): string {
+    const forActions = Array.isArray(policy.for) 
+      ? policy.for.map(action => action.toUpperCase()).join(', ')
+      : 'ALL';
+    
+    return `CREATE POLICY "${policy.name}" ON "${schemaName}"."${model.name}"
+    FOR ${forActions}
+    TO ${policy.to}
+    USING (${policy.using});`;
+  }
+
+  static generateDropPolicySQL(
+    model: Model,
+    policy: Policy,
+    schemaName: string = this.DEFAULT_SCHEMA
+  ): string {
+    return `DROP POLICY IF EXISTS "${policy.name}" ON "${schemaName}"."${model.name}";`;
   }
 } 

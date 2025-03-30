@@ -1,6 +1,6 @@
 What's Missing for a Complete Migration Flow:
 
-Migration Generator [DONE]
+Migration Generator
     Need to create SQL migration files from the parsed schema
     Should handle table creation, modifications, and deletions
     Need to support schema versioning

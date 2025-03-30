@@ -25,7 +25,8 @@ export const DEFAULT_PREVIEW_OPTIONS: MigrationPreviewOptions = {
   includeConstraints: true,
   includeIndexes: true,
   includeRLS: true,
-  includeRoles: true
+  includeRoles: true,
+  includePolicies: true
 };
 
 /**
