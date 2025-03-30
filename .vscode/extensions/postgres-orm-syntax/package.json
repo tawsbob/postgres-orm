@@ -1,0 +1,26 @@
+{
+  "name": "postgres-orm-syntax",
+  "displayName": "PostgreSQL ORM Syntax",
+  "description": "Syntax highlighting for PostgreSQL ORM schema files",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "postgres-orm",
+      "aliases": ["PostgreSQL ORM", "postgres-orm"],
+      "extensions": [".schema"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "postgres-orm",
+      "scopeName": "source.postgres-orm",
+      "path": "./syntaxes/postgres-orm.tmLanguage.json"
+    }]
+  }
+} 

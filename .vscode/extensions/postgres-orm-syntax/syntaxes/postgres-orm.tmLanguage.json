@@ -1,0 +1,112 @@
+{
+  "name": "PostgreSQL ORM",
+  "scopeName": "source.postgres-orm",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#attributes"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#functions"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.postgres-orm",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.postgres-orm",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.postgres-orm",
+          "match": "\\b(model|enum|extension)\\b"
+        },
+        {
+          "name": "keyword.operator.postgres-orm",
+          "match": "\\b(\\?|\\[\\])\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "support.type.postgres-orm",
+          "match": "\\b(UUID|VARCHAR|TEXT|SMALLINT|INTEGER|DECIMAL|BOOLEAN|TIMESTAMP|JSONB|POINT)\\b"
+        }
+      ]
+    },
+    "attributes": {
+      "patterns": [
+        {
+          "name": "entity.other.attribute-name.postgres-orm",
+          "match": "@\\w+"
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "support.function.postgres-orm",
+          "match": "\\b(uuid|autoincrement|now)\\b"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.postgres-orm",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.postgres-orm",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.postgres-orm",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.postgres-orm",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.postgres-orm",
+          "match": "\\b\\d+\\b"
+        }
+      ]
+    }
+  }
+} 
