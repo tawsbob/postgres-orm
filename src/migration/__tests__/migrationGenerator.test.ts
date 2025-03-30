@@ -130,4 +130,42 @@ describe('MigrationGenerator', () => {
     // Verify no steps were generated
     expect(migration.steps.length).toBe(0);
   });
+
+  test('should generate RLS steps', () => {
+    const schema = parser.parseSchema('schema/database.schema');
+    const migration = generator.generateMigration(schema);
+
+    // Verify RLS steps
+    const rlsSteps = migration.steps.filter(step => step.objectType === 'rls');
+    expect(rlsSteps.length).toBeGreaterThan(0);
+
+    // Find User table RLS steps
+    const userRlsSteps = rlsSteps.filter(step => step.name.startsWith('rls_User_'));
+    expect(userRlsSteps.length).toBe(2); // One for ENABLE RLS, one for FORCE RLS
+
+    // Verify RLS SQL statements
+    const enableRlsStep = userRlsSteps.find(step => 
+      step.sql.includes('ENABLE ROW LEVEL SECURITY')
+    );
+    expect(enableRlsStep).toBeDefined();
+
+    const forceRlsStep = userRlsSteps.find(step => 
+      step.sql.includes('FORCE ROW LEVEL SECURITY')
+    );
+    expect(forceRlsStep).toBeDefined();
+
+    // Verify rollback SQL
+    expect(enableRlsStep?.rollbackSql).toContain('DISABLE ROW LEVEL SECURITY');
+  });
+
+  test('should respect RLS migration option', () => {
+    const schema = parser.parseSchema('schema/database.schema');
+    const migration = generator.generateMigration(schema, {
+      includeRLS: false
+    });
+
+    // Verify no RLS steps were generated
+    const rlsSteps = migration.steps.filter(step => step.objectType === 'rls');
+    expect(rlsSteps.length).toBe(0);
+  });
 }); 

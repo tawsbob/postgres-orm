@@ -53,7 +53,8 @@ export class MigrationGenerator {
       includeEnums = true,
       includeTables = true,
       includeConstraints = true,
-      includeIndexes = true
+      includeIndexes = true,
+      includeRLS = true
     } = options;
 
     const steps: MigrationStep[] = [];
@@ -129,6 +130,20 @@ export class MigrationGenerator {
                 rollbackSql: SQLGenerator.generateDropForeignKeySQL(model, relation, schemaName)
               });
             }
+          });
+        }
+
+        // Configure RLS
+        if (includeRLS && model.rowLevelSecurity) {
+          const rlsSql = SQLGenerator.generateRLSSQL(model, schemaName);
+          rlsSql.forEach((sql, index) => {
+            steps.push({
+              type: 'create',
+              objectType: 'rls',
+              name: `rls_${model.name}_${index}`,
+              sql,
+              rollbackSql: SQLGenerator.generateDisableRLSSQL(model, schemaName)
+            });
           });
         }
       });

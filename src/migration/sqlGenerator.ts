@@ -129,4 +129,55 @@ END $$;`;
     const indexName = `idx_${model.name}_${field.name}`;
     return `DROP INDEX IF EXISTS "${schemaName}"."${indexName}";`;
   }
+
+  static generateEnableRLSSQL(
+    model: Model,
+    schemaName: string = this.DEFAULT_SCHEMA
+  ): string {
+    return `ALTER TABLE "${schemaName}"."${model.name}" ENABLE ROW LEVEL SECURITY;`;
+  }
+
+  static generateDisableRLSSQL(
+    model: Model,
+    schemaName: string = this.DEFAULT_SCHEMA
+  ): string {
+    return `ALTER TABLE "${schemaName}"."${model.name}" DISABLE ROW LEVEL SECURITY;`;
+  }
+
+  static generateForceRLSSQL(
+    model: Model,
+    schemaName: string = this.DEFAULT_SCHEMA
+  ): string {
+    return `ALTER TABLE "${schemaName}"."${model.name}" FORCE ROW LEVEL SECURITY;`;
+  }
+
+  static generateNoForceRLSSQL(
+    model: Model,
+    schemaName: string = this.DEFAULT_SCHEMA
+  ): string {
+    return `ALTER TABLE "${schemaName}"."${model.name}" NO FORCE ROW LEVEL SECURITY;`;
+  }
+
+  static generateRLSSQL(
+    model: Model,
+    schemaName: string = this.DEFAULT_SCHEMA
+  ): string[] {
+    const sql: string[] = [];
+    
+    if (model.rowLevelSecurity) {
+      if (model.rowLevelSecurity.enabled) {
+        sql.push(this.generateEnableRLSSQL(model, schemaName));
+      } else {
+        sql.push(this.generateDisableRLSSQL(model, schemaName));
+      }
+
+      if (model.rowLevelSecurity.force) {
+        sql.push(this.generateForceRLSSQL(model, schemaName));
+      } else {
+        sql.push(this.generateNoForceRLSSQL(model, schemaName));
+      }
+    }
+
+    return sql;
+  }
 } 

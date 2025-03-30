@@ -180,4 +180,57 @@ describe('Migration Integration Tests', () => {
       await client.query(`DROP SCHEMA IF EXISTS ${customSchema} CASCADE`);
     }
   });
+
+  test('should properly configure Row Level Security', async () => {
+    const schema = parser.parseSchema('schema/database.schema');
+    const migration = generator.generateMigration(schema);
+    const filePath = writer.writeMigration(migration);
+    const content = fs.readFileSync(filePath, 'utf-8');
+
+    // Extract up migration
+    const upMigration = content.split('-- Down Migration')[0];
+
+    try {
+      // Apply migration
+      await client.query('BEGIN');
+      await client.query(upMigration);
+
+      // Verify RLS is enabled and forced on User table
+      const rlsResult = await client.query(`
+        SELECT 
+          relname as table_name,
+          relrowsecurity as rls_enabled,
+          relforcerowsecurity as rls_forced
+        FROM pg_class
+        WHERE relname = 'User'
+      `);
+
+      expect(rlsResult.rows.length).toBe(1);
+      expect(rlsResult.rows[0].rls_enabled).toBe(true);
+      expect(rlsResult.rows[0].rls_forced).toBe(true);
+
+      // Verify RLS policies (if any) are present
+      const policiesResult = await client.query(`
+        SELECT 
+          schemaname,
+          tablename,
+          policyname,
+          permissive,
+          roles,
+          cmd,
+          qual,
+          with_check
+        FROM pg_policies
+        WHERE tablename = 'User'
+      `);
+
+      // Note: We don't check for specific policies since they're not defined in the schema
+      // but we verify the query works and returns results (even if empty)
+
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    }
+  });
 }); 

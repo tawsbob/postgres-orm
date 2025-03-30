@@ -68,4 +68,13 @@ describe('SchemaParser', () => {
     expect(schema.extensions.map(e => e.name)).toContain('postgis');
     expect(schema.extensions.map(e => e.name)).toContain('uuid-ossp');
   });
+
+  test('should parse row level security configuration correctly', () => {
+    const schema = parser.parseSchema('schema/database.schema');
+    const postModel = schema.models.find(m => m.name === 'User');
+    
+    expect(postModel?.rowLevelSecurity).toBeDefined();
+    expect(postModel?.rowLevelSecurity?.enabled).toBe(true);
+    expect(postModel?.rowLevelSecurity?.force).toBe(true);
+  });
 }); 

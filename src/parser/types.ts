@@ -37,10 +37,16 @@ export interface Relation {
   references?: string[];
 }
 
+export interface RowLevelSecurity {
+  enabled: boolean;
+  force: boolean;
+}
+
 export interface Model {
   name: string;
   fields: Field[];
   relations: Relation[];
+  rowLevelSecurity?: RowLevelSecurity;
 }
 
 export interface Enum {

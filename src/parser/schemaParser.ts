@@ -1,4 +1,4 @@
-import { Schema, Model, Enum, Field, Relation, Extension } from './types';
+import { Schema, Model, Enum, Field, Relation, Extension, RowLevelSecurity } from './types';
 import fs from 'fs';
 import path from 'path';
 
@@ -121,6 +121,20 @@ export class SchemaParser {
     return { name };
   }
 
+  private parseRowLevelSecurity(line: string): RowLevelSecurity | undefined {
+    const rlsMatch = line.match(/@@rowLevelSecurity\(([^)]+)\)/);
+    if (!rlsMatch) return undefined;
+
+    const options = rlsMatch[1];
+    const enabledMatch = options.match(/enabled:\s*(true|false)/);
+    const forceMatch = options.match(/force:\s*(true|false)/);
+
+    return {
+      enabled: enabledMatch ? enabledMatch[1] === 'true' : true,
+      force: forceMatch ? forceMatch[1] === 'true' : false
+    };
+  }
+
   private parseModel(content: string): Model {
     const modelMatch = content.match(/model\s+(\w+)\s*{([^}]+)}/);
     if (!modelMatch) {
@@ -130,10 +144,18 @@ export class SchemaParser {
     const [, name, fieldsContent] = modelMatch;
     const fields: Field[] = [];
     const relations: Relation[] = [];
+    let rowLevelSecurity: RowLevelSecurity | undefined;
 
     fieldsContent.split('\n').forEach(line => {
       line = line.trim();
       if (!line || line.startsWith('//')) return;
+
+      // Check for RLS configuration
+      const rlsConfig = this.parseRowLevelSecurity(line);
+      if (rlsConfig) {
+        rowLevelSecurity = rlsConfig;
+        return;
+      }
 
       // Check for both explicit relations and implicit relations (array syntax)
       if (line.includes('@relation') || line.match(/\w+\s+\w+\[\]/)) {
@@ -143,7 +165,7 @@ export class SchemaParser {
       }
     });
 
-    return { name, fields, relations };
+    return { name, fields, relations, rowLevelSecurity };
   }
 
   public parseSchema(schemaPath: string): Schema {

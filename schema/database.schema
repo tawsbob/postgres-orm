@@ -32,6 +32,8 @@ model User {
   profile       Profile?        @relation("UserProfile")
   orders        Order[]
   preferences   JSONB
+
+   @@rowLevelSecurity(enabled: true, force: true)
 }
 
 model Profile {

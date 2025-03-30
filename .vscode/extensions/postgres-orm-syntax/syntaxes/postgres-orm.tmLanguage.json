@@ -22,6 +22,9 @@
     },
     {
       "include": "#functions"
+    },
+    {
+      "include": "#rls"
     }
   ],
   "repository": {
@@ -47,6 +50,10 @@
         {
           "name": "keyword.operator.postgres-orm",
           "match": "\\b(\\?|\\[\\])\\b"
+        },
+        {
+          "name": "keyword.rls.postgres-orm",
+          "match": "\\b(enable|disable|force|no|inherit)\\b"
         }
       ]
     },
@@ -63,6 +70,10 @@
         {
           "name": "entity.other.attribute-name.postgres-orm",
           "match": "@\\w+"
+        },
+        {
+          "name": "entity.other.attribute-name.postgres-orm",
+          "match": "@@rowLevelSecurity"
         }
       ]
     },
@@ -70,7 +81,7 @@
       "patterns": [
         {
           "name": "support.function.postgres-orm",
-          "match": "\\b(uuid|autoincrement|now)\\b"
+          "match": "\\b(gen_random_uuid|now)\\b"
         }
       ]
     },
@@ -105,6 +116,18 @@
         {
           "name": "constant.numeric.postgres-orm",
           "match": "\\b\\d+\\b"
+        }
+      ]
+    },
+    "rls": {
+      "patterns": [
+        {
+          "name": "keyword.rls.policy.postgres-orm",
+          "match": "\\b(policy|using|with|check)\\b"
+        },
+        {
+          "name": "keyword.rls.security.postgres-orm",
+          "match": "\\b(row\\s+level\\s+security|rls)\\b"
         }
       ]
     }

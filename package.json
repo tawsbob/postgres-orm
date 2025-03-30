@@ -7,7 +7,8 @@
     "build": "tsc",
     "test": "jest",
     "start": "node dist/index.js",
-    "preview": "ts-node src/preview.ts"
+    "preview": "ts-node src/preview.ts",
+    "preview:migration": "ts-node src/preview-migration.ts"
   },
   "dependencies": {
     "@types/pg": "^8.11.11",

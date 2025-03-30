@@ -48,6 +48,13 @@ function printSchema(schema: any, indent: string = ''): void {
         console.log(indent + '      - ' + relation.name + ': ' + relation.type + ' with ' + relation.model + relationDetails);
       });
     }
+
+    // Print RLS Configuration
+    if (model.rowLevelSecurity) {
+      console.log(indent + '    🔒 Row Level Security:');
+      console.log(indent + '      - Enabled:', model.rowLevelSecurity.enabled);
+      console.log(indent + '      - Force:', model.rowLevelSecurity.force);
+    }
   });
 }
 
