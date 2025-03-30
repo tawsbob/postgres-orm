@@ -12,6 +12,8 @@ A lightweight PostgreSQL ORM with schema parsing capabilities, inspired by Prism
   - JSON fields
   - Array types
   - Custom types
+- Migration generation
+- Migration preview functionality
 
 ## Installation
 
@@ -98,6 +100,63 @@ enum EnumName {
 }
 ```
 
+## Migration Previews
+
+You can preview the SQL migrations that would be generated from your schema without actually writing them to disk:
+
+```bash
+# Default preview (pretty-printed format)
+npm run preview:migration
+
+# JSON format
+npm run preview:migration:json
+
+# Raw SQL format
+npm run preview:migration:sql
+
+# Output to file
+npm run preview:migration:file
+
+# View all options
+npm run preview:migration:help
+```
+
+### Custom Preview Options
+
+The migration preview tool supports various command-line options:
+
+```bash
+# Specify a custom schema file
+npm run preview:migration -- --schema custom-schema.schema
+
+# Specify an output file
+npm run preview:migration -- --output custom-output.sql
+
+# Change the output format
+npm run preview:migration -- --format [pretty|json|raw]
+
+# Exclude specific parts from the preview
+npm run preview:migration -- --no-down --no-stats
+npm run preview:migration -- --no-extensions --no-roles
+```
+
+### Programmatic Usage
+
+You can also use the preview functionality programmatically:
+
+```typescript
+import { previewMigration, MigrationPreviewOptions } from 'postgres-orm';
+
+const options: MigrationPreviewOptions = {
+  format: 'json',
+  showDownMigration: false,
+  includeExtensions: true,
+  // ... other options
+};
+
+previewMigration('schema/database.schema', options, 'output.json');
+```
+
 ## Development
 
 1. Clone the repository
@@ -113,7 +172,15 @@ enum EnumName {
    ```bash
    npm run build
    ```
+5. Preview schema:
+   ```bash
+   npm run preview
+   ```
+6. Preview migrations:
+   ```bash
+   npm run preview:migration
+   ```
 
 ## License
 
-MIT 
+MIT
