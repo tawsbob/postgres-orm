@@ -4,12 +4,15 @@ export type FieldType =
   | 'TEXT'
   | 'SMALLINT'
   | 'INTEGER'
+  | 'SERIAL'
   | 'DECIMAL'
   | 'BOOLEAN'
   | 'TIMESTAMP'
   | 'JSONB'
   | 'TEXT[]'
-  | 'POINT';
+  | 'POINT'
+  | 'UserRole'
+  | 'OrderStatus';
 
 export type FieldAttribute = 
   | 'id'

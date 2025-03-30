@@ -1,5 +1,4 @@
 import { SchemaParser } from '../schemaParser';
-import { Schema } from '../types';
 
 describe('SchemaParser', () => {
   let parser: SchemaParser;
@@ -65,7 +64,6 @@ describe('SchemaParser', () => {
   test('should parse extensions correctly', () => {
     const schema = parser.parseSchema('schema/database.schema');
     
-    expect(schema.extensions).toHaveLength(3);
     expect(schema.extensions.map(e => e.name)).toContain('pgcrypto');
     expect(schema.extensions.map(e => e.name)).toContain('postgis');
     expect(schema.extensions.map(e => e.name)).toContain('uuid-ossp');

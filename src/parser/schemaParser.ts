@@ -112,7 +112,7 @@ export class SchemaParser {
   }
 
   private parseExtension(content: string): Extension {
-    const extensionMatch = content.match(/extension\s+(\w+)/);
+    const extensionMatch = content.match(/extension\s+([\w-]+)/);
     if (!extensionMatch) {
       throw new Error('Invalid extension definition');
     }
@@ -150,7 +150,7 @@ export class SchemaParser {
     const content = fs.readFileSync(schemaPath, 'utf-8');
     
     // Parse extensions
-    const extensionRegex = /extension\s+\w+/g;
+    const extensionRegex = /extension\s+([\w-]+)/g;
     let extensionMatch;
     while ((extensionMatch = extensionRegex.exec(content)) !== null) {
       this.schema.extensions.push(this.parseExtension(extensionMatch[0]));
