@@ -48,39 +48,51 @@ export class SchemaParser {
     const isOptional = line.includes('?');
     line = line.replace('?', '').trim();
 
+    // Check for explicit relation with @relation attribute
     const relationMatch = line.match(/(\w+)\s+(\w+)\s+@relation\(([^)]+)\)/);
-    if (!relationMatch) {
-      throw new Error(`Invalid relation: ${line}`);
+    if (relationMatch) {
+      const [, name, model, options] = relationMatch;
+      const relation: Relation = {
+        name,
+        model,
+        type: 'one-to-many' // default type
+      };
+
+      // Parse relation options
+      const fieldsMatch = options.match(/fields:\s*\[([^\]]+)\]/);
+      const referencesMatch = options.match(/references:\s*\[([^\]]+)\]/);
+
+      if (fieldsMatch) {
+        relation.fields = fieldsMatch[1].split(',').map(f => f.trim());
+      }
+      if (referencesMatch) {
+        relation.references = referencesMatch[1].split(',').map(r => r.trim());
+      }
+
+      // Determine relation type
+      if (isOptional && !relation.fields) {
+        relation.type = 'one-to-one';
+      } else if (relation.fields && relation.references) {
+        relation.type = 'one-to-one';
+      } else if (line.includes('[]')) {
+        relation.type = 'one-to-many';
+      }
+
+      return relation;
     }
 
-    const [, name, model, options] = relationMatch;
-    const relation: Relation = {
-      name,
-      model,
-      type: 'one-to-many' // default type
-    };
-
-    // Parse relation options
-    const fieldsMatch = options.match(/fields:\s*\[([^\]]+)\]/);
-    const referencesMatch = options.match(/references:\s*\[([^\]]+)\]/);
-
-    if (fieldsMatch) {
-      relation.fields = fieldsMatch[1].split(',').map(f => f.trim());
-    }
-    if (referencesMatch) {
-      relation.references = referencesMatch[1].split(',').map(r => r.trim());
+    // Handle implicit relation (e.g., "orders Order[]")
+    const implicitMatch = line.match(/(\w+)\s+(\w+)\[\]/);
+    if (implicitMatch) {
+      const [, name, model] = implicitMatch;
+      return {
+        name,
+        model,
+        type: 'one-to-many'
+      };
     }
 
-    // Determine relation type
-    if (isOptional && !relation.fields) {
-      relation.type = 'one-to-one';
-    } else if (relation.fields && relation.references) {
-      relation.type = 'one-to-one';
-    } else if (line.includes('[]')) {
-      relation.type = 'one-to-many';
-    }
-
-    return relation;
+    throw new Error(`Invalid relation: ${line}`);
   }
 
   private parseEnum(content: string): Enum {
@@ -112,7 +124,8 @@ export class SchemaParser {
       line = line.trim();
       if (!line || line.startsWith('//')) return;
 
-      if (line.includes('@relation')) {
+      // Check for both explicit relations and implicit relations (array syntax)
+      if (line.includes('@relation') || line.match(/\w+\s+\w+\[\]/)) {
         relations.push(this.parseRelation(line));
       } else {
         fields.push(this.parseField(line));

@@ -4,6 +4,11 @@ const parser = new SchemaParser();
 const schema = parser.parseSchema('schema/database.schema');
 
 function printSchema(schema: any, indent: string = ''): void {
+
+  console.log(
+    JSON.stringify(schema, null, 2)
+  );
+
   // Print Enums
   console.log('\n' + indent + '📋 Enums:');
   schema.enums.forEach((enumType: any) => {

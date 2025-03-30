@@ -66,7 +66,7 @@ model Product {
 }
 
 model ProductOrder {
-  id            UUID            @id @default(uuid())
+  id            INTEGER         @id @default(autoincrement())
   orderId       UUID
   productId     UUID
   quantity      INTEGER
