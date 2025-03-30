@@ -17,6 +17,19 @@ interface ExtensionRow {
   extname: string;
 }
 
+interface RoleRow {
+  rolname: string;
+  rolsuper: boolean;
+  rolinherit: boolean;
+  rolsuperuser: boolean;
+}
+
+interface RoleGrantRow {
+  grantee: string;
+  table_name: string;
+  privilege_type: string;
+}
+
 async function waitForDatabase(client: Client, maxRetries = 10, retryDelay = 1000): Promise<void> {
   for (let i = 0; i < maxRetries; i++) {
     try {
@@ -29,22 +42,84 @@ async function waitForDatabase(client: Client, maxRetries = 10, retryDelay = 100
   }
 }
 
+async function createTestDatabase(): Promise<string> {
+  const timestamp = Date.now();
+  const dbName = `postgres_orm_test_${timestamp}`;
+  
+  // Connect to default postgres database to create new test database
+  const client = new Client({
+    host: 'localhost',
+    port: 5432,
+    database: 'postgres',
+    user: 'postgres',
+    password: 'postgres'
+  });
+  
+  try {
+    await client.connect();
+    
+    // Create new database
+    await client.query(`CREATE DATABASE ${dbName}`);
+    
+    // Connect to new database and set up required extensions
+    const testClient = new Client({
+      host: 'localhost',
+      port: 5432,
+      database: dbName,
+      user: 'postgres',
+      password: 'postgres'
+    });
+    
+    await testClient.connect();
+    await testClient.query('CREATE EXTENSION IF NOT EXISTS postgis');
+    await testClient.query('CREATE EXTENSION IF NOT EXISTS pgcrypto');
+    await testClient.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
+    await testClient.end();
+    
+    return dbName;
+  } finally {
+    await client.end();
+  }
+}
+
+async function dropTestDatabase(dbName: string): Promise<void> {
+  const client = new Client({
+    host: 'localhost',
+    port: 5432,
+    database: 'postgres',
+    user: 'postgres',
+    password: 'postgres'
+  });
+  
+  try {
+    await client.connect();
+    await client.query(`DROP DATABASE IF EXISTS ${dbName}`);
+  } finally {
+    await client.end();
+  }
+}
+
 describe('Migration Integration Tests', () => {
   let client: Client;
   let parser: SchemaParser;
   let generator: MigrationGenerator;
   let writer: MigrationWriter;
   let testMigrationsDir: string;
+  let testDatabaseName: string;
 
   beforeAll(async () => {
-    // Connect to PostgreSQL
+    // Create a fresh test database
+    testDatabaseName = await createTestDatabase();
+    
+    // Connect to the test database
     client = new Client({
       host: 'localhost',
       port: 5432,
-      database: 'postgres_orm',
+      database: testDatabaseName,
       user: 'postgres',
       password: 'postgres'
     });
+    
     await client.connect();
     await waitForDatabase(client);
 
@@ -57,13 +132,10 @@ describe('Migration Integration Tests', () => {
 
   afterAll(async () => {
     try {
-      // Clean up database
-      await client.query('DROP SCHEMA IF EXISTS public CASCADE');
-      await client.query('CREATE SCHEMA public');
-    } catch (error) {
-      console.error('Error cleaning up database:', error);
-    } finally {
       await client.end();
+    } finally {
+      // Drop the test database
+      await dropTestDatabase(testDatabaseName);
     }
 
     // Clean up test migrations directory
@@ -233,4 +305,6 @@ describe('Migration Integration Tests', () => {
       throw error;
     }
   });
+
+
 }); 

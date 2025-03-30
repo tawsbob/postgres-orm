@@ -71,11 +71,25 @@ END $$;`;
 
   static generateCreateTableSQL(model: Model, schemaName: string = this.DEFAULT_SCHEMA): string {
     const fields = model.fields.map(field => this.generateFieldSQL(field, schemaName));
-    return `CREATE TABLE "${schemaName}"."${model.name}" (\n  ${fields.join(',\n  ')}\n);`;
+    return `DO $$ BEGIN
+  CREATE TABLE "${schemaName}"."${model.name}" (\n  ${fields.join(',\n  ')}\n);
+EXCEPTION
+  WHEN duplicate_table THEN NULL;
+END $$;`;
   }
 
   static generateDropTableSQL(model: Model, schemaName: string = this.DEFAULT_SCHEMA): string {
-    return `DROP TABLE IF EXISTS "${schemaName}"."${model.name}" CASCADE;`;
+    // First revoke all privileges on the table
+    return `DO $$ BEGIN
+  -- Revoke all privileges on the table
+  REVOKE ALL PRIVILEGES ON "${schemaName}"."${model.name}" FROM PUBLIC;
+  REVOKE ALL PRIVILEGES ON "${schemaName}"."${model.name}" FROM postgres;
+  
+  -- Drop the table
+  DROP TABLE IF EXISTS "${schemaName}"."${model.name}" CASCADE;
+EXCEPTION
+  WHEN undefined_table THEN NULL;
+END $$;`;
   }
 
   static generateCreateForeignKeySQL(
@@ -184,8 +198,12 @@ END $$;`;
   static generateCreateRoleSQL(role: Role, schemaName: string = this.DEFAULT_SCHEMA): string[] {
     const sql: string[] = [];
     
-    // Create the role
-    sql.push(`CREATE ROLE "${role.name}";`);
+    // Create the role with error handling
+    sql.push(`DO $$ BEGIN
+  CREATE ROLE "${role.name}";
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;`);
     
     // Grant privileges for each model
     role.privileges.forEach(privilege => {
@@ -199,13 +217,59 @@ END $$;`;
   static generateDropRoleSQL(role: Role, schemaName: string = this.DEFAULT_SCHEMA): string[] {
     const sql: string[] = [];
     
-    // First revoke all privileges
-    role.privileges.forEach(privilege => {
-      const privileges = privilege.privileges.map(p => p.toUpperCase()).join(', ');
-      sql.push(`REVOKE ${privileges} ON "${schemaName}"."${privilege.on}" FROM "${role.name}";`);
-    });
+    // First revoke all privileges from all tables in the schema
+    sql.push(`DO $$ BEGIN
+  -- Try to revoke specific privileges first
+  ${role.privileges.map(privilege => {
+    const privileges = privilege.privileges.map(p => p.toUpperCase()).join(', ');
+    return `
+  BEGIN
+    REVOKE ${privileges} ON "${schemaName}"."${privilege.on}" FROM "${role.name}";
+  EXCEPTION
+    WHEN undefined_object THEN NULL;
+  END;`;
+  }).join('')}
+
+  -- Revoke all remaining privileges to be thorough
+  BEGIN
+    REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA "${schemaName}" FROM "${role.name}";
+  EXCEPTION
+    WHEN undefined_object THEN NULL;
+  END;
+
+  BEGIN
+    REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA "${schemaName}" FROM "${role.name}";
+  EXCEPTION
+    WHEN undefined_object THEN NULL;
+  END;
+
+  BEGIN
+    REVOKE ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA "${schemaName}" FROM "${role.name}";
+  EXCEPTION
+    WHEN undefined_object THEN NULL;
+  END;
+
+  BEGIN
+    REVOKE ALL PRIVILEGES ON SCHEMA "${schemaName}" FROM "${role.name}";
+  EXCEPTION
+    WHEN undefined_object THEN NULL;
+  END;
+  
+  -- Reassign and drop ownership in separate exception blocks
+  BEGIN
+    REASSIGN OWNED BY "${role.name}" TO postgres;
+  EXCEPTION
+    WHEN undefined_object THEN NULL;
+  END;
+
+  BEGIN
+    DROP OWNED BY "${role.name}";
+  EXCEPTION
+    WHEN undefined_object THEN NULL;
+  END;
+END $$;`);
     
-    // Then drop the role
+    // Finally drop the role
     sql.push(`DROP ROLE IF EXISTS "${role.name}";`);
     
     return sql;

@@ -172,7 +172,7 @@ export class MigrationGenerator {
           objectType: 'role',
           name: `${role.name}_create`,
           sql: roleSql[0],
-          rollbackSql: dropRoleSql[dropRoleSql.length - 1]
+          rollbackSql: dropRoleSql[0]
         });
 
         // Grant privileges steps
@@ -182,7 +182,7 @@ export class MigrationGenerator {
             objectType: 'role',
             name: `${role.name}_privileges_${index}`,
             sql,
-            rollbackSql: dropRoleSql[dropRoleSql.length - 1]
+            rollbackSql: dropRoleSql[0]
           });
         });
       });
@@ -204,14 +204,14 @@ export class MigrationGenerator {
       .reverse()
       .map(step => {
         if (step.objectType === 'role') {
-          // For roles, we need to handle the array of SQL statements
+          // For roles, always use the comprehensive drop role SQL
           const role = schema.roles.find(r => r.name === step.name.split('_')[0])!;
           const dropRoleSql = SQLGenerator.generateDropRoleSQL(role, options.schemaName);
           const createRoleSql = SQLGenerator.generateCreateRoleSQL(role, options.schemaName);
           
           return {
             ...step,
-            sql: dropRoleSql[dropRoleSql.length - 1],
+            sql: dropRoleSql[0],
             rollbackSql: createRoleSql[0]
           };
         }
