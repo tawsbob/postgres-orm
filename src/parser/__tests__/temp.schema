@@ -1,0 +1,5 @@
+
+        role invalidRole {
+          invalid syntax
+        }
+      

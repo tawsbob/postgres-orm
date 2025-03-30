@@ -1,4 +1,5 @@
 import { SchemaParser } from '../schemaParser';
+import { Schema } from '../types';
 
 describe('SchemaParser', () => {
   let parser: SchemaParser;
@@ -76,5 +77,65 @@ describe('SchemaParser', () => {
     expect(postModel?.rowLevelSecurity).toBeDefined();
     expect(postModel?.rowLevelSecurity?.enabled).toBe(true);
     expect(postModel?.rowLevelSecurity?.force).toBe(true);
+  });
+
+  describe('parseSchema', () => {
+    it('should parse a schema with roles', () => {
+      const schemaContent = `
+        role blogUser {
+          privileges: ["select", "insert", "update"] on Post
+        }
+
+        role admin {
+          privileges: ["select", "insert", "update", "delete"] on Post
+          privileges: ["select"] on User
+        }
+
+        model Post {
+          id UUID @id
+          title VARCHAR(255)
+        }
+
+        model User {
+          id UUID @id
+          name VARCHAR(255)
+        }
+      `;
+
+      const schema = parser.parseSchema(undefined, schemaContent);
+
+      expect(schema.roles).toHaveLength(2);
+      
+      // Check blogUser role
+      const blogUser = schema.roles.find(r => r.name === 'blogUser');
+      expect(blogUser).toBeDefined();
+      expect(blogUser?.privileges).toHaveLength(1);
+      expect(blogUser?.privileges[0].privileges).toEqual(['select', 'insert', 'update']);
+      expect(blogUser?.privileges[0].on).toBe('Post');
+
+      // Check admin role
+      const admin = schema.roles.find(r => r.name === 'admin');
+      expect(admin).toBeDefined();
+      expect(admin?.privileges).toHaveLength(2);
+      expect(admin?.privileges[0].privileges).toEqual(['select', 'insert', 'update', 'delete']);
+      expect(admin?.privileges[0].on).toBe('Post');
+      expect(admin?.privileges[1].privileges).toEqual(['select']);
+      expect(admin?.privileges[1].on).toBe('User');
+
+      // Check models are still parsed correctly
+      expect(schema.models).toHaveLength(2);
+      expect(schema.models[0].name).toBe('Post');
+      expect(schema.models[1].name).toBe('User');
+    });
+
+    it('should handle invalid role syntax', () => {
+      const schemaContent = `
+        role invalidRole {
+          invalid syntax
+        }
+      `;
+
+      expect(() => parser.parseSchema(undefined, schemaContent)).toThrow('Invalid role definition');
+    });
   });
 }); 

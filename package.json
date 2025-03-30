@@ -6,6 +6,9 @@
   "scripts": {
     "build": "tsc",
     "test": "jest",
+    "test:parser": "jest src/parser/__tests__/schemaParser.test.ts",
+    "test:migration:generator": "jest src/migration/__tests__/migrationGenerator.test.ts",
+    "test:migration:integration": "jest src/migration/__tests__/migrationIntegration.test.ts",
     "start": "node dist/index.js",
     "preview": "ts-node src/preview.ts",
     "preview:migration": "ts-node src/preview-migration.ts"

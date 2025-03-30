@@ -3,6 +3,7 @@ import { MigrationGenerator } from '../migrationGenerator';
 import { MigrationWriter } from '../migrationWriter';
 import fs from 'fs';
 import path from 'path';
+import { Schema } from '../../parser/types';
 
 describe('MigrationGenerator', () => {
   let parser: SchemaParser;
@@ -118,13 +119,21 @@ describe('MigrationGenerator', () => {
   });
 
   test('should respect migration options', () => {
-    const schema = parser.parseSchema('schema/database.schema');
+    const schema: Schema = {
+      models: [],
+      enums: [],
+      extensions: [],
+      roles: []
+    };
+    
     const migration = generator.generateMigration(schema, {
       includeExtensions: false,
       includeEnums: false,
       includeTables: false,
       includeConstraints: false,
-      includeIndexes: false
+      includeIndexes: false,
+      includeRLS: false,
+      includeRoles: false
     });
 
     // Verify no steps were generated
@@ -167,5 +176,164 @@ describe('MigrationGenerator', () => {
     // Verify no RLS steps were generated
     const rlsSteps = migration.steps.filter(step => step.objectType === 'rls');
     expect(rlsSteps.length).toBe(0);
+  });
+
+  describe('generateMigration', () => {
+    it('should generate migration steps for roles', () => {
+      const schema: Schema = {
+        models: [],
+        enums: [],
+        extensions: [],
+        roles: [
+          {
+            name: 'blogUser',
+            privileges: [
+              {
+                privileges: ['select', 'insert', 'update'],
+                on: 'Post'
+              }
+            ]
+          },
+          {
+            name: 'admin',
+            privileges: [
+              {
+                privileges: ['select', 'insert', 'update', 'delete'],
+                on: 'Post'
+              },
+              {
+                privileges: ['select'],
+                on: 'User'
+              }
+            ]
+          }
+        ]
+      };
+
+      const migration = generator.generateMigration(schema);
+
+      // Check role creation steps
+      const roleSteps = migration.steps.filter(step => step.objectType === 'role');
+      expect(roleSteps).toHaveLength(5); // 2 roles with 2 and 3 SQL statements each
+
+      // Check blogUser role
+      const blogUserSteps = roleSteps.filter(step => step.name.startsWith('blogUser_'));
+      expect(blogUserSteps).toHaveLength(2);
+      expect(blogUserSteps[0].sql).toContain('CREATE ROLE "blogUser"');
+      expect(blogUserSteps[1].sql).toContain('GRANT SELECT, INSERT, UPDATE ON "public"."Post" TO "blogUser"');
+
+      // Check admin role
+      const adminSteps = roleSteps.filter(step => step.name.startsWith('admin_'));
+      expect(adminSteps).toHaveLength(3);
+      expect(adminSteps[0].sql).toContain('CREATE ROLE "admin"');
+      expect(adminSteps[1].sql).toContain('GRANT SELECT, INSERT, UPDATE, DELETE ON "public"."Post" TO "admin"');
+      expect(adminSteps[2].sql).toContain('GRANT SELECT ON "public"."User" TO "admin"');
+
+      // Check rollback SQL
+      blogUserSteps.forEach(step => {
+        expect(step.rollbackSql).toBe('DROP ROLE IF EXISTS "blogUser";');
+      });
+      adminSteps.forEach(step => {
+        expect(step.rollbackSql).toBe('DROP ROLE IF EXISTS "admin";');
+      });
+    });
+
+    it('should not generate role steps when includeRoles is false', () => {
+      const schema: Schema = {
+        models: [],
+        enums: [],
+        extensions: [],
+        roles: [
+          {
+            name: 'blogUser',
+            privileges: [
+              {
+                privileges: ['select', 'insert', 'update'],
+                on: 'Post'
+              }
+            ]
+          }
+        ]
+      };
+
+      const migration = generator.generateMigration(schema, { includeRoles: false });
+      const roleSteps = migration.steps.filter(step => step.objectType === 'role');
+      expect(roleSteps).toHaveLength(0);
+    });
+
+    it('should handle roles with models and other schema elements', () => {
+      const schema: Schema = {
+        models: [
+          {
+            name: 'Post',
+            fields: [
+              {
+                name: 'id',
+                type: 'UUID',
+                attributes: ['id']
+              }
+            ],
+            relations: []
+          }
+        ],
+        enums: [],
+        extensions: [],
+        roles: [
+          {
+            name: 'blogUser',
+            privileges: [
+              {
+                privileges: ['select', 'insert', 'update'],
+                on: 'Post'
+              }
+            ]
+          }
+        ]
+      };
+
+      const migration = generator.generateMigration(schema);
+
+      // Check that we have both table and role steps
+      const tableSteps = migration.steps.filter(step => step.objectType === 'table');
+      const roleSteps = migration.steps.filter(step => step.objectType === 'role');
+
+      expect(tableSteps).toHaveLength(1);
+      expect(roleSteps).toHaveLength(2); // 1 role with 2 SQL statements
+
+      // Verify order: table creation should come before role creation
+      const tableStepIndex = migration.steps.findIndex(step => step.objectType === 'table');
+      const roleStepIndex = migration.steps.findIndex(step => step.objectType === 'role');
+      expect(tableStepIndex).toBeLessThan(roleStepIndex);
+    });
+  });
+
+  describe('generateRollbackMigration', () => {
+    it('should generate rollback steps for roles', () => {
+      const schema: Schema = {
+        models: [],
+        enums: [],
+        extensions: [],
+        roles: [
+          {
+            name: 'blogUser',
+            privileges: [
+              {
+                privileges: ['select', 'insert', 'update'],
+                on: 'Post'
+              }
+            ]
+          }
+        ]
+      };
+
+      const migration = generator.generateRollbackMigration(schema);
+      const roleSteps = migration.steps.filter(step => step.objectType === 'role');
+
+      expect(roleSteps).toHaveLength(2); // 1 role with 2 SQL statements
+      roleSteps.forEach(step => {
+        expect(step.sql).toBe('DROP ROLE IF EXISTS "blogUser";');
+        expect(step.rollbackSql).toContain('CREATE ROLE "blogUser"');
+      });
+    });
   });
 }); 

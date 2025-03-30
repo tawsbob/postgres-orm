@@ -1,4 +1,4 @@
-import { Schema, Model, Enum, Field, Relation, Extension, RowLevelSecurity } from './types';
+import { Schema, Model, Enum, Field, Relation, Extension, RowLevelSecurity, Role, Privilege } from './types';
 import fs from 'fs';
 import path from 'path';
 
@@ -6,7 +6,8 @@ export class SchemaParser {
   private schema: Schema = {
     models: [],
     enums: [],
-    extensions: []
+    extensions: [],
+    roles: []
   };
 
   private parseField(line: string): Field {
@@ -135,6 +136,48 @@ export class SchemaParser {
     };
   }
 
+  private parseRole(content: string): Role {
+    const roleMatch = content.match(/role\s+(\w+)\s*{([^}]+)}/);
+    if (!roleMatch) {
+      throw new Error('Invalid role definition');
+    }
+
+    const [, name, privilegesContent] = roleMatch;
+    const privileges: { privileges: Privilege[], on: string }[] = [];
+
+    privilegesContent.split('\n').forEach(line => {
+      line = line.trim();
+      if (!line || line.startsWith('//')) return;
+
+      // Validate privilege syntax
+      if (!line.match(/^privileges:\s*\[[^\]]+\]\s+on\s+\w+$/)) {
+        throw new Error('Invalid role definition');
+      }
+
+      const privilegeMatch = line.match(/privileges:\s*\[([^\]]+)\]\s+on\s+(\w+)/);
+      if (privilegeMatch) {
+        const [, privilegesList, model] = privilegeMatch;
+        // Parse JSON-style array and remove quotes
+        const parsedPrivileges = privilegesList
+          .split(',')
+          .map(p => p.trim().replace(/"/g, '').toLowerCase() as Privilege);
+
+        // Validate that all privileges are valid
+        const validPrivileges: Privilege[] = ['select', 'insert', 'update', 'delete'];
+        if (!parsedPrivileges.every(p => validPrivileges.includes(p))) {
+          throw new Error('Invalid role definition');
+        }
+
+        privileges.push({
+          privileges: parsedPrivileges,
+          on: model
+        });
+      }
+    });
+
+    return { name, privileges };
+  }
+
   private parseModel(content: string): Model {
     const modelMatch = content.match(/model\s+(\w+)\s*{([^}]+)}/);
     if (!modelMatch) {
@@ -168,9 +211,11 @@ export class SchemaParser {
     return { name, fields, relations, rowLevelSecurity };
   }
 
-  public parseSchema(schemaPath: string): Schema {
-    const content = fs.readFileSync(schemaPath, 'utf-8');
-    
+  public parseSchema(schemaPath?: string, fileContent?: string): Schema {
+    const content = schemaPath ? fs.readFileSync(schemaPath, 'utf-8') : fileContent;
+    if (!content) {
+      throw new Error('Schema path or file content is required');
+    }
     // Parse extensions
     const extensionRegex = /extension\s+([\w-]+)/g;
     let extensionMatch;
@@ -183,6 +228,13 @@ export class SchemaParser {
     let enumMatch;
     while ((enumMatch = enumRegex.exec(content)) !== null) {
       this.schema.enums.push(this.parseEnum(enumMatch[0]));
+    }
+
+    // Parse roles
+    const roleRegex = /role\s+\w+\s*{[^}]+}/g;
+    let roleMatch;
+    while ((roleMatch = roleRegex.exec(content)) !== null) {
+      this.schema.roles.push(this.parseRole(roleMatch[0]));
     }
 
     // Parse models

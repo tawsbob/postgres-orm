@@ -58,8 +58,19 @@ export interface Extension {
   name: string;
 }
 
+export type Privilege = 'select' | 'insert' | 'update' | 'delete';
+
+export interface Role {
+  name: string;
+  privileges: {
+    privileges: Privilege[];
+    on: string;
+  }[];
+}
+
 export interface Schema {
   models: Model[];
   enums: Enum[];
   extensions: Extension[];
+  roles: Role[];
 } 

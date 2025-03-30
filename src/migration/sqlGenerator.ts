@@ -1,4 +1,4 @@
-import { Model, Enum, Field, Relation } from '../parser/types';
+import { Model, Enum, Field, Relation, Role } from '../parser/types';
 
 export class SQLGenerator {
   private static readonly DEFAULT_SCHEMA = 'public';
@@ -178,6 +178,36 @@ END $$;`;
       }
     }
 
+    return sql;
+  }
+
+  static generateCreateRoleSQL(role: Role, schemaName: string = this.DEFAULT_SCHEMA): string[] {
+    const sql: string[] = [];
+    
+    // Create the role
+    sql.push(`CREATE ROLE "${role.name}";`);
+    
+    // Grant privileges for each model
+    role.privileges.forEach(privilege => {
+      const privileges = privilege.privileges.map(p => p.toUpperCase()).join(', ');
+      sql.push(`GRANT ${privileges} ON "${schemaName}"."${privilege.on}" TO "${role.name}";`);
+    });
+
+    return sql;
+  }
+
+  static generateDropRoleSQL(role: Role, schemaName: string = this.DEFAULT_SCHEMA): string[] {
+    const sql: string[] = [];
+    
+    // First revoke all privileges
+    role.privileges.forEach(privilege => {
+      const privileges = privilege.privileges.map(p => p.toUpperCase()).join(', ');
+      sql.push(`REVOKE ${privileges} ON "${schemaName}"."${privilege.on}" FROM "${role.name}";`);
+    });
+    
+    // Then drop the role
+    sql.push(`DROP ROLE IF EXISTS "${role.name}";`);
+    
     return sql;
   }
 } 

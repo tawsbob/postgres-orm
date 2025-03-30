@@ -17,6 +17,15 @@ function printSchema(schema: any, indent: string = ''): void {
     console.log(indent + '    Values:', enumType.values.join(', '));
   });
 
+  // Print Roles
+  console.log('\n' + indent + '👥 Roles:');
+  schema.roles.forEach((role: any) => {
+    console.log(indent + '  ' + role.name + ':');
+    role.privileges.forEach((privilege: any) => {
+      console.log(indent + '    - ' + privilege.privileges.join(', ') + ' on ' + privilege.on);
+    });
+  });
+
   // Print Models
   console.log('\n' + indent + '📦 Models:');
   schema.models.forEach((model: any) => {
@@ -68,4 +77,5 @@ console.log('===================');
 console.log(`Total Extensions: ${schema.extensions.length}`);
 console.log(`Total Models: ${schema.models.length}`);
 console.log(`Total Enums: ${schema.enums.length}`);
+console.log(`Total Roles: ${schema.roles.length}`);
 console.log(`Total Relations: ${schema.models.reduce((acc: number, model: any) => acc + model.relations.length, 0)}`); 

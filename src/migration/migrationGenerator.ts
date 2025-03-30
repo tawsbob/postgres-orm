@@ -54,11 +54,22 @@ export class MigrationGenerator {
       includeTables = true,
       includeConstraints = true,
       includeIndexes = true,
-      includeRLS = true
+      includeRLS = true,
+      includeRoles = true
     } = options;
 
     const steps: MigrationStep[] = [];
     const timestamp = new Date().toISOString();
+
+    // If all options are false, return empty migration
+    if (!includeExtensions && !includeEnums && !includeTables && !includeRoles && !includeConstraints && !includeIndexes && !includeRLS) {
+      return {
+        version: this.generateVersion(timestamp),
+        description: 'Empty migration',
+        steps: [],
+        timestamp
+      };
+    }
 
     // Generate extension steps
     if (includeExtensions) {
@@ -149,6 +160,34 @@ export class MigrationGenerator {
       });
     }
 
+    // Generate role steps
+    if (includeRoles) {
+      schema.roles.forEach(role => {
+        const roleSql = SQLGenerator.generateCreateRoleSQL(role, schemaName);
+        const dropRoleSql = SQLGenerator.generateDropRoleSQL(role, schemaName);
+        
+        // Create role step
+        steps.push({
+          type: 'create',
+          objectType: 'role',
+          name: `${role.name}_create`,
+          sql: roleSql[0],
+          rollbackSql: dropRoleSql[dropRoleSql.length - 1]
+        });
+
+        // Grant privileges steps
+        roleSql.slice(1).forEach((sql, index) => {
+          steps.push({
+            type: 'create',
+            objectType: 'role',
+            name: `${role.name}_privileges_${index}`,
+            sql,
+            rollbackSql: dropRoleSql[dropRoleSql.length - 1]
+          });
+        });
+      });
+    }
+
     return {
       version: this.generateVersion(timestamp),
       description: 'Initial schema migration',
@@ -163,11 +202,25 @@ export class MigrationGenerator {
     // Reverse the steps order and swap SQL with rollbackSql
     migration.steps = migration.steps
       .reverse()
-      .map(step => ({
-        ...step,
-        sql: step.rollbackSql,
-        rollbackSql: step.sql
-      }));
+      .map(step => {
+        if (step.objectType === 'role') {
+          // For roles, we need to handle the array of SQL statements
+          const role = schema.roles.find(r => r.name === step.name.split('_')[0])!;
+          const dropRoleSql = SQLGenerator.generateDropRoleSQL(role, options.schemaName);
+          const createRoleSql = SQLGenerator.generateCreateRoleSQL(role, options.schemaName);
+          
+          return {
+            ...step,
+            sql: dropRoleSql[dropRoleSql.length - 1],
+            rollbackSql: createRoleSql[0]
+          };
+        }
+        return {
+          ...step,
+          sql: step.rollbackSql,
+          rollbackSql: step.sql
+        };
+      });
 
     migration.description = 'Rollback migration';
     return migration;

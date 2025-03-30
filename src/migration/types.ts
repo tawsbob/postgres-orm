@@ -1,8 +1,8 @@
-import { Schema, Model, Enum, Field, Relation } from '../parser/types';
+import { Schema, Model, Enum, Field, Relation, Role } from '../parser/types';
 
 export interface MigrationStep {
   type: 'create' | 'alter' | 'drop';
-  objectType: 'table' | 'enum' | 'extension' | 'constraint' | 'index' | 'rls';
+  objectType: 'table' | 'enum' | 'extension' | 'constraint' | 'index' | 'rls' | 'role';
   name: string;
   sql: string;
   rollbackSql: string;
@@ -23,6 +23,7 @@ export interface MigrationOptions {
   includeConstraints?: boolean;
   includeIndexes?: boolean;
   includeRLS?: boolean;
+  includeRoles?: boolean;
 }
 
 export interface MigrationGenerator {
