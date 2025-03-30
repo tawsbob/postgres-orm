@@ -520,22 +520,37 @@ export default class SchemaParserV1 {
         this.schema.enums.push(this.parseEnum(enumMatch[0]));
       }
 
-      // Parse roles
-      const roleRegex = /role\s+\w+\s*{[^}]+}/g;
-      let roleMatch;
-      while ((roleMatch = roleRegex.exec(content)) !== null) {
-        this.schema.roles.push(this.parseRole(roleMatch[0]));
-      }
-
-      // Parse models - using a regex that handles nested braces
-      const modelRegex = /model\s+\w+\s*{[\s\S]*?(?:^}$)/gm;
-      let modelMatch;
-      let modelContent = content;
+      // First, extract all models and roles as raw blocks to separate them correctly
+      const modelBlocks: string[] = [];
+      const roleBlocks: string[] = [];
       
-      // Extract and parse each model
-      while ((modelMatch = modelRegex.exec(modelContent)) !== null) {
+      // Extract model blocks
+      const modelBlockRegex = /model\s+\w+\s*{[\s\S]*?^}/gm;
+      let modelBlockMatch;
+      while ((modelBlockMatch = modelBlockRegex.exec(content)) !== null) {
+        modelBlocks.push(modelBlockMatch[0]);
+      }
+      
+      // Extract role blocks
+      const roleBlockRegex = /role\s+\w+\s*{[\s\S]*?^}/gm;
+      let roleBlockMatch;
+      while ((roleBlockMatch = roleBlockRegex.exec(content)) !== null) {
+        roleBlocks.push(roleBlockMatch[0]);
+      }
+      
+      // Parse roles from extracted blocks
+      for (const roleBlock of roleBlocks) {
         try {
-          this.schema.models.push(this.parseModel(modelMatch[0]));
+          this.schema.roles.push(this.parseRole(roleBlock));
+        } catch (error) {
+          console.error(`Error parsing role: ${(error as Error).message}`);
+        }
+      }
+      
+      // Parse models from extracted blocks
+      for (const modelBlock of modelBlocks) {
+        try {
+          this.schema.models.push(this.parseModel(modelBlock));
         } catch (error) {
           console.error(`Error parsing model: ${(error as Error).message}`);
         }

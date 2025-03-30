@@ -1,4 +1,4 @@
-import { SchemaParser } from '../../parser/schemaParser';
+import SchemaParser from '../../parser/schemaParser';
 import { MigrationGenerator } from '../migrationGenerator';
 import { MigrationWriter } from '../migrationWriter';
 import fs from 'fs';
