@@ -91,6 +91,10 @@ describe('SchemaParser', () => {
           privileges: ["select"] on User
         }
 
+        role testRole {
+          privileges: "all" on Post
+        }
+
         model Post {
           id UUID @id
           title VARCHAR(255)
@@ -104,7 +108,7 @@ describe('SchemaParser', () => {
 
       const schema = parser.parseSchema(undefined, schemaContent);
 
-      expect(schema.roles).toHaveLength(2);
+      expect(schema.roles).toHaveLength(3);
       
       // Check blogUser role
       const blogUser = schema.roles.find(r => r.name === 'blogUser');
