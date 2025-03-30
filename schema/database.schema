@@ -1,0 +1,76 @@
+// PostgreSQL Schema Definition
+// This schema demonstrates various PostgreSQL types and relationships
+
+enum UserRole {
+  ADMIN
+  USER
+  GUEST
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model User {
+  id            UUID            @id @default(uuid())
+  email         VARCHAR(255)    @unique
+  name          VARCHAR(100)
+  role          UserRole        @default(USER)
+  age           SMALLINT
+  balance       DECIMAL(10,2)
+  isActive      BOOLEAN         @default(true)
+  createdAt     TIMESTAMP       @default(now())
+  updatedAt     TIMESTAMP       @updatedAt
+  profile       Profile?        @relation("UserProfile")
+  orders        Order[]
+  preferences   JSONB
+}
+
+model Profile {
+  id            UUID            @id @default(uuid())
+  userId        UUID            @unique
+  bio           TEXT
+  avatar        VARCHAR(255)
+  location      POINT
+  user          User            @relation("UserProfile", fields: [userId], references: [id])
+}
+
+model Order {
+  id            UUID            @id @default(uuid())
+  userId        UUID
+  status        OrderStatus     @default(PENDING)
+  totalAmount   DECIMAL(10,2)
+  items         JSONB
+  createdAt     TIMESTAMP       @default(now())
+  updatedAt     TIMESTAMP       @updatedAt
+  user          User            @relation(fields: [userId], references: [id])
+  products      ProductOrder[]
+}
+
+model Product {
+  id            UUID            @id @default(uuid())
+  name          VARCHAR(255)
+  description   TEXT
+  price         DECIMAL(10,2)
+  stock         INTEGER
+  category      VARCHAR(100)
+  tags          TEXT[]
+  metadata      JSONB
+  createdAt     TIMESTAMP       @default(now())
+  updatedAt     TIMESTAMP       @updatedAt
+  orders        ProductOrder[]
+}
+
+model ProductOrder {
+  id            UUID            @id @default(uuid())
+  orderId       UUID
+  productId     UUID
+  quantity      INTEGER
+  price         DECIMAL(10,2)
+  order         Order           @relation(fields: [orderId], references: [id])
+  product       Product         @relation(fields: [productId], references: [id])
+} 
