@@ -1,4 +1,4 @@
-import { Schema, Model, Enum, Field, Relation, Extension, RowLevelSecurity, Role, Privilege } from './types';
+import { Schema, Model, Enum, Field, Relation, Extension, RowLevelSecurity, Role, Privilege, Policy } from './types';
 import fs from 'fs';
 import path from 'path';
 
@@ -149,27 +149,27 @@ export class SchemaParser {
       line = line.trim();
       if (!line || line.startsWith('//')) return;
 
-      // Validate privilege syntax
-      if (!line.match(/^privileges:\s*\[[^\]]+\]\s+on\s+\w+$/)) {
-        throw new Error('Invalid role definition');
-      }
-
-      const privilegeMatch = line.match(/privileges:\s*\[([^\]]+)\]\s+on\s+(\w+)/);
+      // Match for both array syntax and 'all' string syntax
+      const privilegeMatch = line.match(/privileges:\s*(?:\["([^"]+)"(?:,\s*"([^"]+)")*\]|"([^"]+)")\s+on\s+(\w+)/);
       if (privilegeMatch) {
-        const [, privilegesList, model] = privilegeMatch;
-        // Parse JSON-style array and remove quotes
-        const parsedPrivileges = privilegesList
-          .split(',')
-          .map(p => p.trim().replace(/"/g, '').toLowerCase() as Privilege);
-
-        // Validate that all privileges are valid
-        const validPrivileges: Privilege[] = ['select', 'insert', 'update', 'delete'];
-        if (!parsedPrivileges.every(p => validPrivileges.includes(p))) {
-          throw new Error('Invalid role definition');
+        let privs: Privilege[] = [];
+        
+        // Check if it's the 'all' syntax
+        if (privilegeMatch[3] === 'all') {
+          privs = ['select', 'insert', 'update', 'delete'];
+        } else {
+          // Process array privileges
+          for (let i = 1; i < 3; i++) {
+            if (privilegeMatch[i] && !privilegeMatch[i].includes('all')) {
+              privs.push(privilegeMatch[i].toLowerCase() as Privilege);
+            }
+          }
         }
 
+        const model = privilegeMatch[4];
+        
         privileges.push({
-          privileges: parsedPrivileges,
+          privileges: privs,
           on: model
         });
       }
@@ -179,7 +179,7 @@ export class SchemaParser {
   }
 
   private parseModel(content: string): Model {
-    const modelMatch = content.match(/model\s+(\w+)\s*{([^}]+)}/);
+    const modelMatch = content.match(/model\s+(\w+)\s*{([\s\S]+?)}\s*$/);
     if (!modelMatch) {
       throw new Error('Invalid model definition');
     }
@@ -188,27 +188,117 @@ export class SchemaParser {
     const fields: Field[] = [];
     const relations: Relation[] = [];
     let rowLevelSecurity: RowLevelSecurity | undefined;
+    const policies: Policy[] = [];
 
-    fieldsContent.split('\n').forEach(line => {
+    // Split the content by lines for processing
+    const lines = fieldsContent.split('\n');
+    
+    // Extract policies using a more basic approach
+    let i = 0;
+    while (i < lines.length) {
+      let line = lines[i].trim();
+      
+      // Look for policy declarations
+      if (line.startsWith('@@policy')) {
+        // Extract the policy name
+        const nameMatch = line.match(/@@policy\(\s*"([^"]+)"/);
+        if (!nameMatch) {
+          i++;
+          continue;
+        }
+        
+        const policyName = nameMatch[1];
+        let policyContent = '';
+        let braceCount = 0;
+        let startFound = false;
+        
+        // Collect the entire policy block by counting braces
+        while (i < lines.length) {
+          line = lines[i].trim();
+          policyContent += ' ' + line;
+          
+          // Count opening braces
+          for (let char of line) {
+            if (char === '{') {
+              braceCount++;
+              startFound = true;
+            } else if (char === '}') {
+              braceCount--;
+            }
+          }
+          
+          // If we've found the start and all braces are closed, we're done with this policy
+          if (startFound && braceCount === 0) {
+            break;
+          }
+          
+          i++;
+        }
+        
+        // Extract policy parameters
+        const forMatch = policyContent.match(/for\s*:\s*(?:\[\s*"([^"]+)"(?:\s*,\s*"([^"]+)")*\s*\]|"([^"]+)")/);
+        const toMatch = policyContent.match(/to\s*:\s*"([^"]+)"/);
+        const usingMatch = policyContent.match(/using\s*:\s*"([^"]+)"/);
+        
+        if (!forMatch || !toMatch || !usingMatch) {
+          i++;
+          continue;
+        }
+        
+        // Determine if 'for' is an array or 'all'
+        let forValue: string[] | 'all';
+        if (forMatch[3] === 'all') {
+          forValue = 'all';
+        } else {
+          // Parse the array
+          const arrayString = policyContent.match(/for\s*:\s*\[(.*?)\]/)?.[1] || '';
+          forValue = arrayString
+            .split(',')
+            .map(item => item.trim().replace(/"/g, ''))
+            .filter(Boolean);
+        }
+        
+        policies.push({
+          name: policyName,
+          for: forValue,
+          to: toMatch[1],
+          using: usingMatch[1]
+        });
+      }
+      
+      i++;
+    }
+    
+    // Process fields and other elements
+    lines.forEach(line => {
       line = line.trim();
       if (!line || line.startsWith('//')) return;
 
+      // Skip policy lines and their contents
+      if (line.includes('@@policy') || line.match(/for\s*:|to\s*:|using\s*:/)) return;
+
       // Check for RLS configuration
-      const rlsConfig = this.parseRowLevelSecurity(line);
-      if (rlsConfig) {
-        rowLevelSecurity = rlsConfig;
+      if (line.includes('@@rowLevelSecurity')) {
+        const rlsConfig = this.parseRowLevelSecurity(line);
+        if (rlsConfig) {
+          rowLevelSecurity = rlsConfig;
+          return;
+        }
+      }
+
+      // Check for relations
+      if (line.includes('@relation') || line.match(/\w+\s+\w+\[\]/)) {
+        relations.push(this.parseRelation(line));
         return;
       }
 
-      // Check for both explicit relations and implicit relations (array syntax)
-      if (line.includes('@relation') || line.match(/\w+\s+\w+\[\]/)) {
-        relations.push(this.parseRelation(line));
-      } else {
+      // Regular field
+      if (line.match(/^\w+\s+\w+/) && !line.includes('@@')) {
         fields.push(this.parseField(line));
       }
     });
-
-    return { name, fields, relations, rowLevelSecurity };
+    
+    return { name, fields, relations, rowLevelSecurity, policies };
   }
 
   public parseSchema(schemaPath?: string, fileContent?: string): Schema {
@@ -237,11 +327,12 @@ export class SchemaParser {
       this.schema.roles.push(this.parseRole(roleMatch[0]));
     }
 
-    // Parse models
-    const modelRegex = /model\s+\w+\s*{[^}]+}/g;
-    let modelMatch;
-    while ((modelMatch = modelRegex.exec(content)) !== null) {
-      this.schema.models.push(this.parseModel(modelMatch[0]));
+    // Parse models by finding the bounds of each model definition
+    const modelMatches = content.match(/model\s+\w+\s*{[\s\S]+?^}/gm);
+    if (modelMatches) {
+      for (const modelText of modelMatches) {
+        this.schema.models.push(this.parseModel(modelText));
+      }
     }
 
     return this.schema;

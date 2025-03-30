@@ -34,6 +34,18 @@ model User {
   preferences   JSONB
 
    @@rowLevelSecurity(enabled: true, force: true)
+
+   @@policy("userIsolation", {
+    for: ["select", "update"],
+    to: "Profile",
+    using: "(userId = (SELECT current_setting('app.current_user_id')::integer));"
+  })
+
+  @@policy("adminAccess", {
+    for: "all",
+    to: "adminRole",
+    using: "true"
+  })
 }
 
 model Profile {
@@ -81,6 +93,10 @@ model ProductOrder {
   product       Product         @relation(fields: [productId], references: [id])
 } 
 
-role AdminUser {
+role logdUser {
   privileges: ["select", "insert", "update"] on User
+}
+
+role adminRole {
+  privileges: "all" on Post
 }

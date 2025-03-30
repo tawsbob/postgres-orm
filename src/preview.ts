@@ -64,6 +64,20 @@ function printSchema(schema: any, indent: string = ''): void {
       console.log(indent + '      - Enabled:', model.rowLevelSecurity.enabled);
       console.log(indent + '      - Force:', model.rowLevelSecurity.force);
     }
+
+    // Print Policies
+    if (model.policies && model.policies.length > 0) {
+      console.log(indent + '    🛡️ Policies:');
+      model.policies.forEach((policy: any) => {
+        const forActions = Array.isArray(policy.for) 
+          ? policy.for.join(', ') 
+          : policy.for;
+        console.log(indent + `      - ${policy.name}:`);
+        console.log(indent + `        For: ${forActions}`);
+        console.log(indent + `        To: ${policy.to}`);
+        console.log(indent + `        Using: ${policy.using}`);
+      });
+    }
   });
 }
 
@@ -78,4 +92,5 @@ console.log(`Total Extensions: ${schema.extensions.length}`);
 console.log(`Total Models: ${schema.models.length}`);
 console.log(`Total Enums: ${schema.enums.length}`);
 console.log(`Total Roles: ${schema.roles.length}`);
-console.log(`Total Relations: ${schema.models.reduce((acc: number, model: any) => acc + model.relations.length, 0)}`); 
+console.log(`Total Relations: ${schema.models.reduce((acc: number, model: any) => acc + model.relations.length, 0)}`);
+console.log(`Total Policies: ${schema.models.reduce((acc: number, model: any) => acc + (model.policies ? model.policies.length : 0), 0)}`); 

@@ -42,11 +42,19 @@ export interface RowLevelSecurity {
   force: boolean;
 }
 
+export interface Policy {
+  name: string;
+  for: string[] | 'all';
+  to: string;
+  using: string;
+}
+
 export interface Model {
   name: string;
   fields: Field[];
   relations: Relation[];
   rowLevelSecurity?: RowLevelSecurity;
+  policies?: Policy[];
 }
 
 export interface Enum {
