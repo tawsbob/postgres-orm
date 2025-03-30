@@ -178,6 +178,72 @@ describe('MigrationGenerator', () => {
     expect(rlsSteps.length).toBe(0);
   });
 
+  test('should generate policy steps', () => {
+    const schema = parser.parseSchema('schema/database.schema');
+    const migration = generator.generateMigration(schema);
+
+    // Verify policy steps
+    const policySteps = migration.steps.filter(step => step.objectType === 'policy');
+    expect(policySteps.length).toBeGreaterThan(0);
+
+    // Find User table policy steps
+    const userPolicySteps = policySteps.filter(step => step.name.startsWith('policy_User_'));
+    expect(userPolicySteps.length).toBe(2); // Two policies: userIsolation and adminAccess
+
+    // Check policy SQL
+    const userIsolationPolicy = userPolicySteps.find(step => step.name === 'policy_User_userIsolation');
+    expect(userIsolationPolicy).toBeDefined();
+    expect(userIsolationPolicy?.sql).toContain('CREATE POLICY "userIsolation" ON "public"."User"');
+    expect(userIsolationPolicy?.sql).toContain('FOR SELECT, UPDATE');
+    expect(userIsolationPolicy?.sql).toContain('TO Profile');
+    expect(userIsolationPolicy?.sql).toContain('current_setting(\'app.current_user_id\')');
+
+    const adminAccessPolicy = userPolicySteps.find(step => step.name === 'policy_User_adminAccess');
+    expect(adminAccessPolicy).toBeDefined();
+    expect(adminAccessPolicy?.sql).toContain('CREATE POLICY "adminAccess" ON "public"."User"');
+    expect(adminAccessPolicy?.sql).toContain('FOR ALL');
+    expect(adminAccessPolicy?.sql).toContain('TO adminRole');
+    expect(adminAccessPolicy?.sql).toContain('USING (true)');
+
+    // Verify rollback SQL
+    expect(userIsolationPolicy?.rollbackSql).toContain('DROP POLICY IF EXISTS "userIsolation" ON "public"."User"');
+    expect(adminAccessPolicy?.rollbackSql).toContain('DROP POLICY IF EXISTS "adminAccess" ON "public"."User"');
+  });
+  
+  test('should respect policy migration option', () => {
+    const schema = parser.parseSchema('schema/database.schema');
+    const migration = generator.generateMigration(schema, {
+      includePolicies: false
+    });
+
+    // Verify no policy steps were generated
+    const policySteps = migration.steps.filter(step => step.objectType === 'policy');
+    expect(policySteps.length).toBe(0);
+  });
+
+  test('should include policies in rollback migration', () => {
+    const schema = parser.parseSchema('schema/database.schema');
+    const migration = generator.generateMigration(schema);
+    const rollback = generator.generateRollbackMigration(schema);
+
+    // Find policy steps in original migration
+    const policySteps = migration.steps.filter(step => step.objectType === 'policy');
+    expect(policySteps.length).toBeGreaterThan(0);
+
+    // Find policy steps in rollback migration
+    const rollbackPolicySteps = rollback.steps.filter(step => step.objectType === 'policy');
+    expect(rollbackPolicySteps.length).toBe(policySteps.length);
+
+    // Verify SQL content is swapped
+    const originalPolicy = policySteps.find(step => step.name === 'policy_User_userIsolation');
+    const rollbackPolicy = rollbackPolicySteps.find(step => step.name === 'policy_User_userIsolation');
+    
+    expect(originalPolicy).toBeDefined();
+    expect(rollbackPolicy).toBeDefined();
+    expect(rollbackPolicy?.sql).toBe(originalPolicy?.rollbackSql);
+    expect(rollbackPolicy?.rollbackSql).toBe(originalPolicy?.sql);
+  });
+
   describe('generateMigration', () => {
     it('should generate migration steps for roles', () => {
       const schema: Schema = {
