@@ -61,4 +61,13 @@ describe('SchemaParser', () => {
     expect(userRelation?.fields).toEqual(['userId']);
     expect(userRelation?.references).toEqual(['id']);
   });
+
+  test('should parse extensions correctly', () => {
+    const schema = parser.parseSchema('schema/database.schema');
+    
+    expect(schema.extensions).toHaveLength(3);
+    expect(schema.extensions.map(e => e.name)).toContain('pgcrypto');
+    expect(schema.extensions.map(e => e.name)).toContain('postgis');
+    expect(schema.extensions.map(e => e.name)).toContain('uuid-ossp');
+  });
 }); 

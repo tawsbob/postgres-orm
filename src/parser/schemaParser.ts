@@ -1,11 +1,12 @@
-import { Schema, Model, Enum, Field, Relation } from './types';
+import { Schema, Model, Enum, Field, Relation, Extension } from './types';
 import fs from 'fs';
 import path from 'path';
 
 export class SchemaParser {
   private schema: Schema = {
     models: [],
-    enums: []
+    enums: [],
+    extensions: []
   };
 
   private parseField(line: string): Field {
@@ -110,6 +111,16 @@ export class SchemaParser {
     };
   }
 
+  private parseExtension(content: string): Extension {
+    const extensionMatch = content.match(/extension\s+(\w+)/);
+    if (!extensionMatch) {
+      throw new Error('Invalid extension definition');
+    }
+
+    const [, name] = extensionMatch;
+    return { name };
+  }
+
   private parseModel(content: string): Model {
     const modelMatch = content.match(/model\s+(\w+)\s*{([^}]+)}/);
     if (!modelMatch) {
@@ -137,6 +148,13 @@ export class SchemaParser {
 
   public parseSchema(schemaPath: string): Schema {
     const content = fs.readFileSync(schemaPath, 'utf-8');
+    
+    // Parse extensions
+    const extensionRegex = /extension\s+\w+/g;
+    let extensionMatch;
+    while ((extensionMatch = extensionRegex.exec(content)) !== null) {
+      this.schema.extensions.push(this.parseExtension(extensionMatch[0]));
+    }
     
     // Parse enums
     const enumRegex = /enum\s+\w+\s*{[^}]+}/g;

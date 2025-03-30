@@ -45,7 +45,12 @@ export interface Enum {
   values: string[];
 }
 
+export interface Extension {
+  name: string;
+}
+
 export interface Schema {
   models: Model[];
   enums: Enum[];
+  extensions: Extension[];
 } 

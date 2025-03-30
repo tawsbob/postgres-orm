@@ -4,11 +4,12 @@ const parser = new SchemaParser();
 const schema = parser.parseSchema('schema/database.schema');
 
 function printSchema(schema: any, indent: string = ''): void {
-
-  console.log(
-    JSON.stringify(schema, null, 2)
-  );
-
+  // Print Extensions
+  console.log('\n' + indent + '🔌 Extensions:');
+  schema.extensions.forEach((extension: any) => {
+    console.log(indent + '  - ' + extension.name);
+  });
+  
   // Print Enums
   console.log('\n' + indent + '📋 Enums:');
   schema.enums.forEach((enumType: any) => {
@@ -57,6 +58,7 @@ printSchema(schema);
 // Print some statistics
 console.log('\n📊 Schema Statistics:');
 console.log('===================');
+console.log(`Total Extensions: ${schema.extensions.length}`);
 console.log(`Total Models: ${schema.models.length}`);
 console.log(`Total Enums: ${schema.enums.length}`);
 console.log(`Total Relations: ${schema.models.reduce((acc: number, model: any) => acc + model.relations.length, 0)}`); 

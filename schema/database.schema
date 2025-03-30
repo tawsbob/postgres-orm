@@ -1,6 +1,10 @@
 // PostgreSQL Schema Definition
 // This schema demonstrates various PostgreSQL types and relationships
 
+extension pgcrypto
+extension postgis
+extension uuid-ossp
+
 enum UserRole {
   ADMIN
   USER
