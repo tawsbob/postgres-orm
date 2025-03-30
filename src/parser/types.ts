@@ -17,7 +17,8 @@ export type FieldType =
 export type FieldAttribute = 
   | 'id'
   | 'unique'
-  | 'default';
+  | 'default'
+  | 'updatedAt';
 
 export interface Field {
   name: string;

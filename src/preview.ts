@@ -1,9 +1,13 @@
-import { SchemaParser } from './parser/schemaParser';
+//import { SchemaParser } from './parser/schemaParser';
+import SchemaParserV1 from './parser/schemaParser';
 
-const parser = new SchemaParser();
+const parser = new SchemaParserV1();
 const schema = parser.parseSchema('schema/database.schema');
 
 function printSchema(schema: any, indent: string = ''): void {
+  console.log(
+    JSON.stringify(schema, null, 2)
+  );
   // Print Extensions
   console.log('\n' + indent + '🔌 Extensions:');
   schema.extensions.forEach((extension: any) => {

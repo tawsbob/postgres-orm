@@ -98,5 +98,5 @@ role logdUser {
 }
 
 role adminRole {
-  privileges: "all" on Post
+  privileges: "all" on User
 }
