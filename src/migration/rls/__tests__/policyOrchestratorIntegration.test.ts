@@ -1,6 +1,5 @@
 import { PolicyOrchestrator } from '../policyOrchestrator';
 import { Model, Policy } from '../../../parser/types';
-import { SQLGenerator } from '../../sqlGenerator';
 
 describe('PolicyOrchestrator Integration Tests', () => {
   let orchestrator: PolicyOrchestrator;

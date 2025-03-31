@@ -6,6 +6,7 @@ import { TableOrchestrator } from './table/tableOrchestrator';
 import { EnumOrchestrator } from './enum/enumOrchestrator';
 import { RLSOrchestrator } from './rls/rlsOrchestrator';
 import { PolicyOrchestrator } from './rls/policyOrchestrator';
+import { RoleOrchestrator } from './role/roleOrchestrator';
 
 export class MigrationGenerator {
   private static readonly DEFAULT_SCHEMA = 'public';
@@ -14,6 +15,7 @@ export class MigrationGenerator {
   private enumOrchestrator: EnumOrchestrator;
   private rlsOrchestrator: RLSOrchestrator;
   private policyOrchestrator: PolicyOrchestrator;
+  private roleOrchestrator: RoleOrchestrator;
 
   constructor() {
     this.extensionOrchestrator = new ExtensionOrchestrator();
@@ -21,6 +23,7 @@ export class MigrationGenerator {
     this.enumOrchestrator = new EnumOrchestrator();
     this.rlsOrchestrator = new RLSOrchestrator();
     this.policyOrchestrator = new PolicyOrchestrator();
+    this.roleOrchestrator = new RoleOrchestrator();
   }
 
   private getTableDependencies(model: Schema['models'][0]): string[] {
@@ -144,110 +147,33 @@ export class MigrationGenerator {
       steps.push(...policySteps);
     }
 
-    // Handle roles
+    // Handle roles using the role orchestrator
     if (includeRoles) {
-      // Create a map of roles by name for easier lookup
-      const fromRolesMap = new Map();
-      fromSchema.roles.forEach(role => fromRolesMap.set(role.name, role));
+      const roleDiff = this.roleOrchestrator.compareRoles(
+        fromSchema.roles,
+        toSchema.roles
+      );
       
-      const toRolesMap = new Map();
-      toSchema.roles.forEach(role => toRolesMap.set(role.name, role));
-      
-      // Find added roles
-      toSchema.roles.forEach(role => {
-        if (!fromRolesMap.has(role.name)) {
-          const roleSql = SQLGenerator.generateCreateRoleSQL(role, schemaName);
-          const dropRoleSql = SQLGenerator.generateDropRoleSQL(role, schemaName);
-          
-          // Create role step
-          steps.push({
-            type: 'create',
-            objectType: 'role',
-            name: `${role.name}_create`,
-            sql: roleSql[0],
-            rollbackSql: dropRoleSql[0]
-          });
-          
-          // Grant privileges steps
-          roleSql.slice(1).forEach((sql, index) => {
-            steps.push({
-              type: 'create',
-              objectType: 'role',
-              name: `${role.name}_grant_${index}`,
-              sql,
-              rollbackSql: '' // No specific rollback for grants, dropping the role revokes everything
-            });
-          });
-        }
-      });
-      
-      // Find removed roles
-      fromSchema.roles.forEach(role => {
-        if (!toRolesMap.has(role.name)) {
-          const dropRoleSql = SQLGenerator.generateDropRoleSQL(role, schemaName);
-          const createRoleSql = SQLGenerator.generateCreateRoleSQL(role, schemaName);
-          
-          steps.push({
-            type: 'drop',
-            objectType: 'role',
-            name: role.name,
-            sql: dropRoleSql[0],
-            rollbackSql: createRoleSql[0]
-          });
-        }
-      });
-      
-      // Find updated roles
-      // This is more complex as we need to compare privileges
-      toSchema.roles.forEach(role => {
-        const fromRole = fromRolesMap.get(role.name);
-        if (fromRole) {
-          // Check if privileges have changed
-          // For simplicity, we'll drop and recreate the role if anything changed
-          if (JSON.stringify(fromRole.privileges) !== JSON.stringify(role.privileges)) {
-            // Drop the old role
-            const dropRoleSql = SQLGenerator.generateDropRoleSQL(role, schemaName);
-            steps.push({
-              type: 'drop',
-              objectType: 'role',
-              name: `${role.name}_drop`,
-              sql: dropRoleSql[0],
-              rollbackSql: '' // Will be recreated in next step
-            });
-            
-            // Create the new role
-            const createRoleSql = SQLGenerator.generateCreateRoleSQL(role, schemaName);
-            steps.push({
-              type: 'create',
-              objectType: 'role',
-              name: `${role.name}_create`,
-              sql: createRoleSql[0],
-              rollbackSql: '' // No specific rollback needed here
-            });
-            
-            // Grant new privileges
-            createRoleSql.slice(1).forEach((sql, index) => {
-              steps.push({
-                type: 'create',
-                objectType: 'role',
-                name: `${role.name}_grant_${index}`,
-                sql,
-                rollbackSql: '' // No specific rollback for grants
-              });
-            });
-          }
-        }
-      });
+      const roleSteps = this.roleOrchestrator.generateRoleMigrationSteps(roleDiff, schemaName);
+      steps.push(...roleSteps);
     }
 
     return {
       version: this.generateVersion(timestamp),
-      description: 'Schema migration',
+      description: 'Migration based on schema changes',
       steps,
       timestamp
     };
   }
 
+  /**
+   * Generate migration from a target schema
+   * This is used when we want to generate a migration based solely on the target schema
+   * 
+   * @param schema Target schema to create migration for
+   * @param options Migration options
+   * @returns Migration for creating all objects in the schema
+   */
   generateMigration(schema: Schema, options: MigrationOptions = {}): Migration {
     const {
       schemaName = MigrationGenerator.DEFAULT_SCHEMA,
@@ -264,85 +190,87 @@ export class MigrationGenerator {
     const steps: MigrationStep[] = [];
     const timestamp = new Date().toISOString();
 
-    // If all options are false, return empty migration
-    if (!includeExtensions && !includeEnums && !includeTables && !includeRoles && !includeConstraints && !includeIndexes && !includeRLS && !includePolicies) {
-      return {
-        version: this.generateVersion(timestamp),
-        description: 'Empty migration',
-        steps: [],
-        timestamp
-      };
-    }
-
-    // Generate extension steps
+    // Handle extensions
     if (includeExtensions) {
       schema.extensions.forEach(extension => {
+        const extensionSql = SQLGenerator.generateCreateExtensionSQL(extension.name, extension.version);
+        const dropExtensionSql = SQLGenerator.generateDropExtensionSQL(extension.name);
+        
         steps.push({
           type: 'create',
           objectType: 'extension',
           name: extension.name,
-          sql: SQLGenerator.generateCreateExtensionSQL(extension.name, extension.version),
-          rollbackSql: SQLGenerator.generateDropExtensionSQL(extension.name)
+          sql: extensionSql,
+          rollbackSql: dropExtensionSql
         });
       });
     }
 
-    // Generate enum steps
+    // Handle enums
     if (includeEnums) {
-      // Create a simple EnumDiff with only added enums (since this is a new migration)
-      const enumDiff = {
-        added: schema.enums,
-        removed: [],
-        updated: []
-      };
-      
-      // Use the orchestrator to generate steps
-      const enumSteps = this.enumOrchestrator.generateEnumMigrationSteps(enumDiff, schemaName);
-      steps.push(...enumSteps);
+      schema.enums.forEach(enumDef => {
+        const enumSql = SQLGenerator.generateCreateEnumSQL(enumDef, schemaName);
+        const dropEnumSql = SQLGenerator.generateDropEnumSQL(enumDef, schemaName);
+        
+        steps.push({
+          type: 'create',
+          objectType: 'enum',
+          name: enumDef.name,
+          sql: enumSql,
+          rollbackSql: dropEnumSql
+        });
+      });
     }
 
-    // Generate table steps in dependency order
+    // Handle tables, constraints, and indexes
     if (includeTables) {
+      // Sort models topologically (based on dependencies)
       const sortedModels = this.sortModelsByDependencies(schema.models);
       
-      // First create all tables without constraints
       sortedModels.forEach(model => {
+        // Create table
+        const tableSql = SQLGenerator.generateCreateTableSQL(model, schemaName);
+        const dropTableSql = SQLGenerator.generateDropTableSQL(model, schemaName);
+        
         steps.push({
           type: 'create',
           objectType: 'table',
           name: model.name,
-          sql: SQLGenerator.generateCreateTableSQL(model, schemaName),
-          rollbackSql: SQLGenerator.generateDropTableSQL(model, schemaName)
+          sql: tableSql,
+          rollbackSql: dropTableSql
         });
-      });
 
-      // Then add constraints and indexes
-      sortedModels.forEach(model => {
-        // Create indexes
-        if (includeIndexes) {
-          model.fields.forEach(field => {
-            if (field.attributes.includes('unique')) {
+        // Add constraints for relations
+        if (includeConstraints) {
+          model.relations.forEach(relation => {
+            if (relation.fields && relation.references) {
+              const constraintSql = SQLGenerator.generateCreateForeignKeySQL(model, relation, schemaName);
+              const dropConstraintSql = SQLGenerator.generateDropForeignKeySQL(model, relation, schemaName);
+              
               steps.push({
                 type: 'create',
-                objectType: 'index',
-                name: `idx_${model.name}_${field.name}`,
-                sql: SQLGenerator.generateCreateIndexSQL(model, field, schemaName),
-                rollbackSql: SQLGenerator.generateDropIndexSQL(model, field, schemaName)
+                objectType: 'constraint',
+                name: `${model.name}_${relation.name}_fkey`,
+                sql: constraintSql,
+                rollbackSql: dropConstraintSql
               });
             }
           });
         }
 
-        // Create foreign keys
-        if (includeConstraints) {
-          model.relations.forEach(relation => {
-            if (relation.fields && relation.references) {
+        // Create indexes
+        if (includeIndexes) {
+          model.fields.forEach(field => {
+            if (field.attributes.includes('unique') && !field.attributes.includes('id')) {
+              const indexSql = SQLGenerator.generateCreateIndexSQL(model, field, schemaName);
+              const dropIndexSql = SQLGenerator.generateDropIndexSQL(model, field, schemaName);
+              
               steps.push({
                 type: 'create',
-                objectType: 'constraint',
-                name: `fk_${model.name}_${relation.name}`,
-                sql: SQLGenerator.generateCreateForeignKeySQL(model, relation, schemaName),
-                rollbackSql: SQLGenerator.generateDropForeignKeySQL(model, relation, schemaName)
+                objectType: 'index',
+                name: `${model.name}_${field.name}_idx`,
+                sql: indexSql,
+                rollbackSql: dropIndexSql
               });
             }
           });
@@ -378,32 +306,18 @@ export class MigrationGenerator {
       });
     }
 
-    // Generate role steps
-    if (includeRoles) {
-      schema.roles.forEach(role => {
-        const roleSql = SQLGenerator.generateCreateRoleSQL(role, schemaName);
-        const dropRoleSql = SQLGenerator.generateDropRoleSQL(role, schemaName);
-        
-        // Create role step
-        steps.push({
-          type: 'create',
-          objectType: 'role',
-          name: `${role.name}_create`,
-          sql: roleSql[0],
-          rollbackSql: dropRoleSql[0]
-        });
-
-        // Grant privileges steps
-        roleSql.slice(1).forEach((sql, index) => {
-          steps.push({
-            type: 'create',
-            objectType: 'role',
-            name: `${role.name}_privileges_${index}`,
-            sql,
-            rollbackSql: dropRoleSql[0]
-          });
-        });
-      });
+    // Generate role steps using the role orchestrator
+    if (includeRoles && schema.roles.length > 0) {
+      // Create a fake diff entry for roles
+      const roleDiff = {
+        added: schema.roles,
+        removed: [],
+        updated: []
+      };
+      
+      // Use the role orchestrator to generate steps
+      const roleSteps = this.roleOrchestrator.generateRoleMigrationSteps(roleDiff, schemaName);
+      steps.push(...roleSteps);
     }
 
     return {
