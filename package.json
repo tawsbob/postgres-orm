@@ -14,6 +14,9 @@
     "test:extension": "jest src/migration/__tests__/extensionManagement.test.ts",
     "test:extension:integration": "jest --forceExit src/migration/runner/__tests__/extensionManagementIntegration.test.ts",
     "test:extension:integration:verbose": "VERBOSE=true jest --forceExit src/migration/runner/__tests__/extensionManagementIntegration.test.ts",
+    "test:extension:orchestrator": "jest src/migration/extension/__tests__/extensionOrchestrator.test.ts",
+    "test:extension:generator": "jest src/migration/__tests__/migrationGeneratorExtensions.test.ts",
+    "test:extensions:all": "jest src/migration/extension/__tests__/*.test.ts src/migration/__tests__/migrationGeneratorExtensions.test.ts src/migration/__tests__/extensionManagement.test.ts",
     "start": "node dist/index.js",
     "preview": "ts-node src/preview.ts",
     "preview:migration": "ts-node src/preview-migration.ts",
@@ -21,11 +24,13 @@
     "preview:migration:sql": "ts-node src/preview-migration.ts -- --format raw",
     "preview:migration:file": "ts-node src/preview-migration.ts -- --output migrations/preview.sql --format raw",
     "preview:migration:help": "ts-node src/preview-migration.ts -- --help",
+    "preview:migration:compare": "ts-node src/preview-migration.ts -- --from-schema schema/current.schema --schema schema/new.schema",
     "migrate": "ts-node src/cli/runMigrations.ts",
     "migrate:up": "ts-node src/cli/runMigrations.ts up",
     "migrate:down": "ts-node src/cli/runMigrations.ts down",
     "migrate:status": "ts-node src/cli/runMigrations.ts status",
-    "migrate:generate": "ts-node src/cli/runMigrations.ts generate"
+    "migrate:generate": "ts-node src/cli/runMigrations.ts generate",
+    "example:extension-comparison": "node examples/extension-comparison.js"
   },
   "dependencies": {
     "@types/pg": "^8.11.11",

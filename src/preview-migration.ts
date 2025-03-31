@@ -140,10 +140,18 @@ function previewMigration(
 /**
  * Parse command line arguments
  */
-function parseCommandLineArgs(): { schemaPath: string; options: MigrationPreviewOptions; outputPath?: string } {
+function parseCommandLineArgs(): { 
+  schemaPath: string; 
+  fromSchemaPath?: string;
+  options: MigrationPreviewOptions; 
+  outputPath?: string;
+  isComparison: boolean;
+} {
   const args = process.argv.slice(2);
   let schemaPath = 'schema/database.schema';
+  let fromSchemaPath: string | undefined;
   let outputPath: string | undefined;
+  let isComparison = false;
   
   const options: MigrationPreviewOptions = {
     ...DEFAULT_PREVIEW_OPTIONS
@@ -154,9 +162,12 @@ function parseCommandLineArgs(): { schemaPath: string; options: MigrationPreview
     
     if (arg === '--schema' || arg === '-s') {
       schemaPath = args[++i] || schemaPath;
+    } else if (arg === '--from-schema' || arg === '-f') {
+      fromSchemaPath = args[++i];
+      isComparison = true;
     } else if (arg === '--output' || arg === '-o') {
       outputPath = args[++i];
-    } else if (arg === '--format' || arg === '-f') {
+    } else if (arg === '--format') {
       const format = args[++i];
       if (['pretty', 'json', 'raw'].includes(format)) {
         options.format = format as 'pretty' | 'json' | 'raw';
@@ -194,7 +205,7 @@ function parseCommandLineArgs(): { schemaPath: string; options: MigrationPreview
     }
   }
   
-  return { schemaPath, options, outputPath };
+  return { schemaPath, fromSchemaPath, options, outputPath, isComparison };
 }
 
 /**
@@ -202,43 +213,104 @@ function parseCommandLineArgs(): { schemaPath: string; options: MigrationPreview
  */
 function printHelp(): void {
   console.log(`
-Migration Preview Tool
-=====================
-
-Usage: npm run preview:migration [options] [schema-path]
+Usage: npx preview-migration [options] [schema-path]
 
 Options:
-  -s, --schema <path>     Path to schema file (default: schema/database.schema)
-  -o, --output <path>     Write output to file instead of console
-  -f, --format <format>   Output format: pretty, json, raw (default: pretty)
-  
-  --no-up                 Don't show up migration
-  --no-down               Don't show down migration
-  --no-stats              Don't show statistics
-  
-  --no-extensions         Don't include extensions
-  --no-enums              Don't include enums
-  --no-tables             Don't include tables
-  --no-constraints        Don't include constraints
-  --no-indexes            Don't include indexes
-  --no-rls                Don't include row level security
-  --no-roles              Don't include roles
-  --no-policies           Don't include policies
-  
-  -h, --help              Show this help information
+  --schema, -s <path>       Path to the schema file (default: schema/database.schema)
+  --from-schema, -f <path>  Path to the source schema file for comparison
+  --output, -o <path>       Path to save the migration output
+  --format <format>         Output format: pretty, json, raw (default: pretty)
+  --no-up                   Don't show up migration
+  --no-down                 Don't show down migration
+  --no-stats                Don't show migration statistics
+  --no-extensions           Don't include extensions in migration
+  --no-enums                Don't include enums in migration
+  --no-tables               Don't include tables in migration
+  --no-constraints          Don't include constraints in migration
+  --no-indexes              Don't include indexes in migration
+  --no-rls                  Don't include row level security in migration
+  --no-roles                Don't include roles in migration
+  --no-policies             Don't include policies in migration
+  --help, -h                Show this help
 
 Examples:
-  npm run preview:migration
-  npm run preview:migration -- --format json
-  npm run preview:migration -- custom-schema.schema --output migration-preview.sql
-  npm run preview:migration -- --no-down --no-stats
+  npx preview-migration
+  npx preview-migration schema/database.schema
+  npx preview-migration --from-schema schema/current.schema --schema schema/new.schema
+  npx preview-migration --output migration.sql --format raw
+  npx preview-migration --no-extensions --no-enums
 `);
 }
 
-// If this file is run directly
-if (require.main === module) {
-  const { schemaPath, options, outputPath } = parseCommandLineArgs();
-  previewMigration(schemaPath, options, outputPath);
+// Main execution
+try {
+  const { schemaPath, fromSchemaPath, options, outputPath, isComparison } = parseCommandLineArgs();
+  
+  console.log(`Reading schema from ${schemaPath}...`);
+  
+  // Read schema file
+  const parser = new SchemaParserV1();
+  const targetSchema = parser.parseSchema(schemaPath);
+  
+  let migration: Migration;
+  
+  if (isComparison && fromSchemaPath) {
+    console.log(`Comparing with schema from ${fromSchemaPath}...`);
+    const sourceSchema = parser.parseSchema(fromSchemaPath);
+    
+    // Generate migration using comparison logic
+    const generator = new MigrationGenerator();
+    migration = generator.generateMigrationFromDiff(sourceSchema, targetSchema, {
+      includeExtensions: options.includeExtensions,
+      includeEnums: options.includeEnums,
+      includeTables: options.includeTables,
+      includeConstraints: options.includeConstraints,
+      includeIndexes: options.includeIndexes,
+      includeRLS: options.includeRLS,
+      includeRoles: options.includeRoles,
+      includePolicies: options.includePolicies
+    });
+  } else {
+    // Generate migration from single schema (traditional approach)
+    const generator = new MigrationGenerator();
+    migration = generator.generateMigration(targetSchema, {
+      includeExtensions: options.includeExtensions,
+      includeEnums: options.includeEnums,
+      includeTables: options.includeTables,
+      includeConstraints: options.includeConstraints,
+      includeIndexes: options.includeIndexes,
+      includeRLS: options.includeRLS,
+      includeRoles: options.includeRoles,
+      includePolicies: options.includePolicies
+    });
+  }
+
+  // Format migration output
+  let output: string;
+  switch (options.format) {
+    case 'json':
+      output = migrationToJson(migration);
+      break;
+    case 'raw':
+      output = migrationToRawSql(migration);
+      break;
+    case 'pretty':
+    default:
+      output = formatMigrationForPreview(migration, options);
+      break;
+  }
+
+  // Output or save
+  if (outputPath) {
+    fs.writeFileSync(outputPath, output);
+    console.log(`Migration saved to ${outputPath}`);
+  } else {
+    console.log(output);
+  }
+
+} catch (error) {
+  console.error('Error:', (error as Error).message);
+  process.exit(1);
 }
 
 // Export the function for use in other modules

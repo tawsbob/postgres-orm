@@ -1,9 +1,15 @@
 import { Schema } from '../parser/types';
 import { Migration, MigrationOptions, MigrationStep } from './types';
 import { SQLGenerator } from './sqlGenerator';
+import { ExtensionOrchestrator } from './extension/extensionOrchestrator';
 
 export class MigrationGenerator {
   private static readonly DEFAULT_SCHEMA = 'public';
+  private extensionOrchestrator: ExtensionOrchestrator;
+
+  constructor() {
+    this.extensionOrchestrator = new ExtensionOrchestrator();
+  }
 
   private getTableDependencies(model: Schema['models'][0]): string[] {
     return model.relations
@@ -44,6 +50,53 @@ export class MigrationGenerator {
     }
 
     return sorted;
+  }
+
+  /**
+   * Generate migration by comparing two schemas (from source to target)
+   * This is used when we need to detect changes between schemas
+   * 
+   * @param fromSchema Source schema (current state)
+   * @param toSchema Target schema (desired state)
+   * @param options Migration options
+   * @returns Migration with steps to transform source schema to target schema
+   */
+  generateMigrationFromDiff(fromSchema: Schema, toSchema: Schema, options: MigrationOptions = {}): Migration {
+    const {
+      schemaName = MigrationGenerator.DEFAULT_SCHEMA,
+      includeExtensions = true,
+      includeEnums = true,
+      includeTables = true,
+      includeConstraints = true,
+      includeIndexes = true,
+      includeRLS = true,
+      includeRoles = true,
+      includePolicies = true
+    } = options;
+
+    const steps: MigrationStep[] = [];
+    const timestamp = new Date().toISOString();
+
+    // Handle extensions using the orchestrator
+    if (includeExtensions) {
+      const extensionDiff = this.extensionOrchestrator.compareExtensions(
+        fromSchema.extensions, 
+        toSchema.extensions
+      );
+      
+      const extensionSteps = this.extensionOrchestrator.generateExtensionMigrationSteps(extensionDiff);
+      steps.push(...extensionSteps);
+    }
+
+    // TODO: Add comparison logic for other schema objects (enums, tables, etc.)
+    // This implementation focuses only on extensions for now
+
+    return {
+      version: this.generateVersion(timestamp),
+      description: 'Schema migration',
+      steps,
+      timestamp
+    };
   }
 
   generateMigration(schema: Schema, options: MigrationOptions = {}): Migration {
