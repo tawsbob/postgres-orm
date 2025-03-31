@@ -6,3 +6,5 @@ export * from './runner';
 export { TableOrchestrator } from './table/tableOrchestrator';
 export { ExtensionOrchestrator } from './extension/extensionOrchestrator';
 export { EnumOrchestrator } from './enum/enumOrchestrator';
+export { RLSOrchestrator } from './rls/rlsOrchestrator';
+export { PolicyOrchestrator } from './rls/policyOrchestrator';

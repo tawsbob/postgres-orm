@@ -4,7 +4,8 @@ import { SQLGenerator } from './sqlGenerator';
 import { ExtensionOrchestrator } from './extension/extensionOrchestrator';
 import { TableOrchestrator } from './table/tableOrchestrator';
 import { EnumOrchestrator } from './enum/enumOrchestrator';
-import { RLSOrchestrator } from './rlw/rlsOrchestrator';
+import { RLSOrchestrator } from './rls/rlsOrchestrator';
+import { PolicyOrchestrator } from './rls/policyOrchestrator';
 
 export class MigrationGenerator {
   private static readonly DEFAULT_SCHEMA = 'public';
@@ -12,12 +13,14 @@ export class MigrationGenerator {
   private tableOrchestrator: TableOrchestrator;
   private enumOrchestrator: EnumOrchestrator;
   private rlsOrchestrator: RLSOrchestrator;
+  private policyOrchestrator: PolicyOrchestrator;
 
   constructor() {
     this.extensionOrchestrator = new ExtensionOrchestrator();
     this.tableOrchestrator = new TableOrchestrator();
     this.enumOrchestrator = new EnumOrchestrator();
     this.rlsOrchestrator = new RLSOrchestrator();
+    this.policyOrchestrator = new PolicyOrchestrator();
   }
 
   private getTableDependencies(model: Schema['models'][0]): string[] {
@@ -128,6 +131,17 @@ export class MigrationGenerator {
       
       const rlsSteps = this.rlsOrchestrator.generateRLSMigrationSteps(rlsDiff, schemaName);
       steps.push(...rlsSteps);
+    }
+    
+    // Handle policies using the policy orchestrator
+    if (includePolicies) {
+      const policyDiff = this.policyOrchestrator.comparePolicies(
+        fromSchema.models,
+        toSchema.models
+      );
+      
+      const policySteps = this.policyOrchestrator.generatePolicyMigrationSteps(policyDiff, schemaName);
+      steps.push(...policySteps);
     }
 
     // Handle roles
@@ -348,20 +362,18 @@ export class MigrationGenerator {
           steps.push(...rlsSteps);
         }
 
-        // Add policies
+        // Add policies using the policy orchestrator
         if (includePolicies && model.policies && model.policies.length > 0) {
-          model.policies.forEach(policy => {
-            const policyCreateSql = SQLGenerator.generateCreatePolicySQL(model, policy, schemaName);
-            const policyDropSql = SQLGenerator.generateDropPolicySQL(model, policy, schemaName);
-            
-            steps.push({
-              type: 'create',
-              objectType: 'policy',
-              name: `policy_${model.name}_${policy.name}`,
-              sql: policyCreateSql,
-              rollbackSql: policyDropSql
-            });
-          });
+          // Create a fake diff entry for a model with policies
+          const policyDiff = {
+            added: model.policies.map(policy => ({ model, policy })),
+            removed: [],
+            updated: []
+          };
+          
+          // Use the policy orchestrator to generate steps
+          const policySteps = this.policyOrchestrator.generatePolicyMigrationSteps(policyDiff, schemaName);
+          steps.push(...policySteps);
         }
       });
     }
