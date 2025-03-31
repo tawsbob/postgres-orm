@@ -11,7 +11,8 @@ function printSchema(schema: any, indent: string = ''): void {
   // Print Extensions
   console.log('\n' + indent + '🔌 Extensions:');
   schema.extensions.forEach((extension: any) => {
-    console.log(indent + '  - ' + extension.name);
+    const versionInfo = extension.version ? ` (version: ${extension.version})` : '';
+    console.log(indent + '  - ' + extension.name + versionInfo);
   });
   
   // Print Enums

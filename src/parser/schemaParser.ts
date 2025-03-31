@@ -230,13 +230,13 @@ export default class SchemaParserV1 {
    */
   private parseExtension(content: string): Extension {
     try {
-      const extensionMatch = content.match(/extension\s+([\w-]+)(\s*\(version=['"]([^'"]+)['"]\))?/);
+      const extensionMatch = content.match(/extension\s+([\w-]+)(?:\s*\(version=['"]([^'"]+)['"]\))?/);
       if (!extensionMatch) {
         throw new Error('Invalid extension definition');
       }
 
       const name = extensionMatch[1];
-      const version = extensionMatch[3];
+      const version = extensionMatch[2];
       
       return { 
         name,
@@ -513,7 +513,7 @@ export default class SchemaParserV1 {
       };
       
       // Parse extensions
-      const extensionRegex = /extension\s+([\w-]+)/g;
+      const extensionRegex = /extension\s+([\w-]+)(?:\s*\(version=['"]([^'"]+)['"]\))?/g;
       let extensionMatch;
       while ((extensionMatch = extensionRegex.exec(content)) !== null) {
         this.schema.extensions.push(this.parseExtension(extensionMatch[0]));

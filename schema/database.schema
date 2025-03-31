@@ -1,8 +1,8 @@
 // PostgreSQL Schema Definition
 // This schema demonstrates various PostgreSQL types and relationships
 
-extension pgcrypto
-extension postgis
+extension pgcrypto (version='1.3')
+extension postgis 
 extension uuid-ossp
 
 enum UserRole {
@@ -44,6 +44,16 @@ model User {
     for: "all",
     to: "adminRole",
     using: "true"
+  })
+
+  //TODO: IMPLEMENT THE PARSER AND THE ORCHESTRATOR FOR THE TRIGGER
+  @@trigger("BEFORE UPDATE", {
+    level: "FOR EACH ROW",
+    execute: """
+    IF (OLD.balance <> NEW.balance) THEN
+      RAISE EXCEPTION 'Balance cannot be updated directly';
+    END IF;
+    """
   })
 }
 
