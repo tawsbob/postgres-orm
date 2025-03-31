@@ -16,7 +16,10 @@ END $$;`;
     return `DROP TYPE IF EXISTS "${schemaName}"."${enumType.name}" CASCADE;`;
   }
 
-  static generateCreateExtensionSQL(extensionName: string): string {
+  static generateCreateExtensionSQL(extensionName: string, version?: string): string {
+    if (version) {
+      return `CREATE EXTENSION IF NOT EXISTS "${extensionName}" VERSION '${version}';`;
+    }
     return `CREATE EXTENSION IF NOT EXISTS "${extensionName}";`;
   }
 

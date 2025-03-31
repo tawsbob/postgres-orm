@@ -79,7 +79,7 @@ export class MigrationGenerator {
           type: 'create',
           objectType: 'extension',
           name: extension.name,
-          sql: SQLGenerator.generateCreateExtensionSQL(extension.name),
+          sql: SQLGenerator.generateCreateExtensionSQL(extension.name, extension.version),
           rollbackSql: SQLGenerator.generateDropExtensionSQL(extension.name)
         });
       });

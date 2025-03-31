@@ -230,12 +230,18 @@ export default class SchemaParserV1 {
    */
   private parseExtension(content: string): Extension {
     try {
-      const extensionMatch = content.match(/extension\s+([\w-]+)/);
+      const extensionMatch = content.match(/extension\s+([\w-]+)(\s*\(version=['"]([^'"]+)['"]\))?/);
       if (!extensionMatch) {
         throw new Error('Invalid extension definition');
       }
 
-      return { name: extensionMatch[1] };
+      const name = extensionMatch[1];
+      const version = extensionMatch[3];
+      
+      return { 
+        name,
+        ...(version ? { version } : {})
+      };
     } catch (error) {
       throw new Error(`Failed to parse extension: ${content}. ${(error as Error).message}`);
     }

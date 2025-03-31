@@ -65,6 +65,7 @@ export interface Enum {
 
 export interface Extension {
   name: string;
+  version?: string;
 }
 
 export type Privilege = 'select' | 'insert' | 'update' | 'delete';
