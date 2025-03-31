@@ -20,13 +20,13 @@ This document provides a comprehensive reference for the PostgreSQL ORM schema d
 
 Extensions add additional functionality to PostgreSQL. To add an extension to your database:
 
-```
+```prisma
 extension extension_name
 ```
 
 You can optionally specify a version:
 
-```
+```prisma
 extension extension_name (version='1.0')
 ```
 
@@ -40,7 +40,7 @@ When specifying the version of an extension, you can control which version of th
 
 The version syntax follows PostgreSQL's extension versioning:
 
-```
+```prisma
 extension extension_name (version='1.0')
 extension postgis (version='3.1.4')
 extension pg_trgm (version='1.6')
@@ -57,7 +57,7 @@ Common extensions include:
 
 Enums define a set of fixed values that a field can have. The syntax is:
 
-```
+```prisma
 enum EnumName {
   VALUE1
   VALUE2
@@ -66,7 +66,7 @@ enum EnumName {
 ```
 
 Example:
-```
+```prisma
 enum UserRole {
   ADMIN
   USER
@@ -80,7 +80,7 @@ Enum values are case-sensitive and should be written in uppercase by convention.
 
 Models represent database tables. The syntax is:
 
-```
+```prisma
 model ModelName {
   field1        FieldType        @attribute1 @attribute2
   field2        FieldType        @attribute
@@ -92,7 +92,7 @@ model ModelName {
 ```
 
 Example:
-```
+```prisma
 model User {
   id            UUID            @id @default(gen_random_uuid())
   email         VARCHAR(255)    @unique
@@ -105,7 +105,7 @@ model User {
 
 Fields define the columns in your table. The syntax is:
 
-```
+```prisma
 fieldName  FieldType(length,scale)  @attribute1 @attribute2  @default(value)
 ```
 
@@ -144,7 +144,7 @@ Attributes modify the behavior of fields:
 
 Default values can use PostgreSQL functions:
 
-```
+```prisma
 createdAt  TIMESTAMP  @default(now())
 uuid       UUID       @default(gen_random_uuid())
 ```
@@ -153,7 +153,7 @@ uuid       UUID       @default(gen_random_uuid())
 
 Relations define how models are connected to each other:
 
-```
+```prisma
 // One-to-one relation
 profile       Profile?        @relation("UserProfile")
 
@@ -177,7 +177,7 @@ The relation types are:
 
 Row Level Security (RLS) restricts which rows users can access. To enable RLS on a model:
 
-```
+```prisma
 model User {
   // ...fields...
 
@@ -193,7 +193,7 @@ Options:
 
 Policies define the conditions under which users can access rows:
 
-```
+```prisma
 @@policy("policyName", {
   for: ["select", "update", "delete", "insert"],
   to: "roleName",
@@ -208,7 +208,7 @@ Parameters:
 - `using`: The condition that must be true for the operation to be allowed
 
 Example:
-```
+```prisma
 @@policy("userIsolation", {
   for: ["select", "update"],
   to: "authenticated",
@@ -226,14 +226,14 @@ Example:
 
 Roles define database users or groups with specific permissions:
 
-```
+```prisma
 role RoleName {
   privileges: ["SELECT", "INSERT", "UPDATE", "DELETE"] on TableName
 }
 ```
 
 Example:
-```
+```prisma
 role adminRole {
   privileges: ["ALL"] on User
   privileges: ["SELECT", "UPDATE"] on Profile
@@ -249,7 +249,7 @@ Parameters:
 
 Here's a complete schema example demonstrating the key concepts:
 
-```
+```prisma
 // Extensions
 extension pgcrypto
 extension postgis
