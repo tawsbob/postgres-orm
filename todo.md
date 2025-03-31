@@ -1,14 +1,16 @@
 What's Missing for a Complete Migration Flow:
 
 Migration Generator
-    Need to create SQL migration files from the parsed schema
-    Should handle table creation, modifications, and deletions
-    Need to support schema versioning
+    - [x] Need to create SQL migration files from the parsed schema
+    - [x] Should handle table creation, modifications, and deletions
+    - [x] Need to support schema versioning
 
 Migration Runner
-    Need a system to execute migrations in order
-    Should track which migrations have been applied
-    Need rollback capabilities
+    - [ ] Need a system to execute migrations in order
+    - [ ] Should track which migrations have been applied
+    - [ ] Need rollback capabilities
+
+- [] Test the migration flow on real database.
 
 Database Connection Management
     Need a connection pool or client management system

@@ -160,20 +160,32 @@ export class TableOrchestrator {
     // Compare type
     if (fromField.type !== toField.type) return true;
 
+    // Compare length - check for null/undefined and actual length changes
+    if ((fromField.length === undefined && toField.length !== undefined) ||
+        (fromField.length !== undefined && toField.length === undefined) ||
+        (fromField.length !== toField.length)) {
+      return true;
+    }
+
+    // Compare precision - check for null/undefined and actual precision changes
+    if ((fromField.precision === undefined && toField.precision !== undefined) ||
+        (fromField.precision !== undefined && toField.precision === undefined) ||
+        (fromField.precision !== toField.precision)) {
+      return true;
+    }
+
+    // Compare scale - check for null/undefined and actual scale changes
+    if ((fromField.scale === undefined && toField.scale !== undefined) ||
+        (fromField.scale !== undefined && toField.scale === undefined) ||
+        (fromField.scale !== toField.scale)) {
+      return true;
+    }
+
     // Compare attributes
     if (this.haveAttributesChanged(fromField.attributes, toField.attributes)) return true;
 
     // Compare defaultValue
     if (fromField.defaultValue !== toField.defaultValue) return true;
-
-    // Compare length
-    if (fromField.length !== toField.length) return true;
-
-    // Compare precision
-    if (fromField.precision !== toField.precision) return true;
-
-    // Compare scale
-    if (fromField.scale !== toField.scale) return true;
 
     return false;
   }

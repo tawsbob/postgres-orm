@@ -7,12 +7,14 @@ import inquirer from 'inquirer';
 import SchemaParserV1 from '../parser/schemaParser';
 import { MigrationGenerator } from '../migration/migrationGenerator';
 import { migrationToRawSql } from '../migration/previewHelpers';
+import { SchemaStateManager } from '../migration/schemaState';
+import { Schema } from '../parser/types';
 
 // Load environment variables from .env file
 config();
 
 interface CliOptions {
-  command: 'up' | 'down' | 'status' | 'generate';
+  command: 'up' | 'down' | 'status' | 'generate' | 'init-state';
   migrationsDir: string;
   connectionString?: string;
   schemaName?: string;
@@ -23,6 +25,7 @@ interface CliOptions {
   schemaPath?: string;
   name?: string;
   outputPath?: string;
+  forceFull?: boolean;
 }
 
 /**
@@ -38,9 +41,9 @@ function toSnakeCase(str: string): string {
 
 function parseArgs(): CliOptions {
   const args = process.argv.slice(2);
-  const command = args[0] as 'up' | 'down' | 'status' | 'generate';
+  const command = args[0] as 'up' | 'down' | 'status' | 'generate' | 'init-state';
   
-  if (!command || !['up', 'down', 'status', 'generate'].includes(command)) {
+  if (!command || !['up', 'down', 'status', 'generate', 'init-state'].includes(command)) {
     printUsage();
     process.exit(1);
   }
@@ -74,6 +77,8 @@ function parseArgs(): CliOptions {
       options.name = args[++i];
     } else if (arg === '--output' && i + 1 < args.length) {
       options.outputPath = args[++i];
+    } else if (arg === '--force-full') {
+      options.forceFull = true;
     } else if (arg === '--help') {
       printUsage();
       process.exit(0);
@@ -88,10 +93,11 @@ function printUsage() {
 Usage: migrate <command> [options]
 
 Commands:
-  up        Run pending migrations
-  down      Rollback migrations
-  status    Show migration status
-  generate  Generate migration from schema
+  up          Run pending migrations
+  down        Rollback migrations
+  status      Show migration status
+  generate    Generate migration from schema
+  init-state  Initialize schema state without generating a migration
 
 Options:
   --dir <path>              Migrations directory (default: ./migrations)
@@ -101,15 +107,38 @@ Options:
   --steps <number>          Number of migrations to roll back (down only)
   --to-version <version>    Roll back to specific version (down only)
   --dry-run                 Show what would be executed without making changes
-  --schema-path <path>      Path to schema file (generate only, default: schema/database.schema)
-  --name <name>             Migration name (generate only)
-  --output <path>           Output path (generate only, default: <migrations_dir>/<timestamp>_<name>.sql)
+  --schema-path <path>      Path to schema file (generate/init-state only, default: schema/database.schema)
+  --name <n>                Migration name (generate only)
+  --output <path>           Output path (generate only, default: <migrations_dir>/<timestamp>_<n>.sql)
+  --force-full              Force generating a full migration instead of a diff (generate only)
   --help                    Show this help message
   `);
 }
 
 async function main() {
   const options = parseArgs();
+  
+  if (options.command === 'init-state') {
+    try {
+      const schemaPath = options.schemaPath || 'schema/database.schema';
+      console.log(`Initializing schema state from: ${schemaPath}`);
+      
+      // Parse the schema
+      const parser = new SchemaParserV1();
+      const schema = parser.parseSchema(schemaPath);
+      
+      // Save the schema state
+      const stateManager = new SchemaStateManager(options.migrationsDir);
+      stateManager.saveSchemaState(schema);
+      
+      console.log('✅ Schema state initialized successfully.');
+      console.log('Future migrations will be generated as diffs from this state.');
+      return;
+    } catch (error) {
+      console.error('Error initializing schema state:', error);
+      process.exit(1);
+    }
+  }
   
   if (options.command === 'generate') {
     try {
@@ -139,11 +168,19 @@ async function main() {
       const parser = new SchemaParserV1();
       const schema = parser.parseSchema(schemaPath);
       
+      // Get previous schema state
+      const stateManager = new SchemaStateManager(options.migrationsDir);
+      const previousSchema = stateManager.getSchemaState();
+      
       // Generate the migration
       const migrationGenerator = new MigrationGenerator();
-      const migration = migrationGenerator.generateMigration(schema, {
-        schemaName: options.schemaName || 'public',
-      });
+      const migration = options.forceFull || !previousSchema
+        ? migrationGenerator.generateMigration(schema, {
+            schemaName: options.schemaName || 'public',
+          })
+        : migrationGenerator.generateMigrationFromDiff(previousSchema, schema, {
+            schemaName: options.schemaName || 'public',
+          });
 
       // Use the provided name for the migration description
       migration.description = migrationName;
@@ -164,9 +201,13 @@ async function main() {
       // Write the migration file
       fs.writeFileSync(outputPath, sql);
       
+      // Save the current schema state
+      stateManager.saveSchemaState(schema);
+      
       console.log(`✅ Migration generated successfully at ${outputPath}`);
       console.log(`Migration version: ${migration.version}`);
       console.log(`Migration contains ${migration.steps.length} steps`);
+      console.log(`Migration type: ${options.forceFull || !previousSchema ? 'Full schema' : 'Differential'}`);
       
       return;
     } catch (error) {
@@ -199,6 +240,24 @@ async function main() {
           } else {
             console.log('Successfully applied migrations:');
             result.appliedMigrations.forEach(v => console.log(`  - ${v}`));
+            
+            // Update schema state after successful migration
+            // Only if we have migrations to apply and it's not a dry run
+            if (result.appliedMigrations.length > 0 && !options.dryRun) {
+              try {
+                // Parse the current schema
+                const parser = new SchemaParserV1();
+                const schemaPath = options.schemaPath || 'schema/database.schema';
+                const schema = parser.parseSchema(schemaPath);
+                
+                // Save the schema state
+                const stateManager = new SchemaStateManager(options.migrationsDir);
+                stateManager.saveSchemaState(schema);
+                console.log('Schema state updated for future differential migrations.');
+              } catch (stateError) {
+                console.warn('Warning: Failed to update schema state:', stateError);
+              }
+            }
           }
         } else {
           console.error('Error applying migrations:', result.error);
@@ -221,6 +280,24 @@ async function main() {
           } else {
             console.log('Successfully rolled back migrations:');
             result.rolledBackMigrations.forEach(v => console.log(`  - ${v}`));
+            
+            // Update schema state after successful rollback
+            // Only if we have rolled back migrations and it's not a dry run
+            if (result.rolledBackMigrations.length > 0 && !options.dryRun) {
+              try {
+                // Parse the current schema
+                const parser = new SchemaParserV1();
+                const schemaPath = options.schemaPath || 'schema/database.schema';
+                const schema = parser.parseSchema(schemaPath);
+                
+                // Save the schema state
+                const stateManager = new SchemaStateManager(options.migrationsDir);
+                stateManager.saveSchemaState(schema);
+                console.log('Schema state updated for future differential migrations.');
+              } catch (stateError) {
+                console.warn('Warning: Failed to update schema state:', stateError);
+              }
+            }
           }
         } else {
           console.error('Error rolling back migrations:', result.error);
@@ -256,11 +333,11 @@ async function main() {
     console.error('Error:', error);
     process.exit(1);
   } finally {
+    // Close the database connection
     await runner.close();
   }
 }
 
-// Run the main function
 main().catch(error => {
   console.error('Unhandled error:', error);
   process.exit(1);

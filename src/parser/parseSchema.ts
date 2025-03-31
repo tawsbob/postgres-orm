@@ -1,5 +1,4 @@
 import SchemaParserV1 from './schemaParser';
-import fs from 'fs';
 import path from 'path';
 
 /**

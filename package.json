@@ -20,6 +20,9 @@
     "test:table:orchestrator": "jest src/migration/table/__tests__/tableOrchestrator.test.ts",
     "test:table:integration": "jest --forceExit src/migration/table/__tests__/tableOrchestratorIntegration.test.ts",
     "test:table:all": "jest src/migration/table/__tests__/*.test.ts",
+    "test:relation:orchestrator": "jest src/migration/relation/__tests__/relationOrchestrator.test.ts",
+    "test:relation:integration": "jest src/migration/relation/__tests__/relationOrchestratorIntegration.test.ts",
+    "test:relation:all": "jest src/migration/relation/__tests__/*.test.ts",
     "test:rls:orchestrator": "jest src/migration/rls/__tests__/rlsOrchestrator.test.ts",
     "test:rls:integration": "jest src/migration/__tests__/migrationGenerator.test.ts -t 'should handle RLS changes'",
     "test:rls:all": "jest src/migration/rls/__tests__/*.test.ts src/migration/__tests__/migrationGenerator.test.ts -t 'RLS'",
@@ -29,7 +32,7 @@
     "test:role:orchestrator": "jest src/migration/role/__tests__/roleOrchestrator.test.ts",
     "test:role:integration": "jest src/migration/role/__tests__/roleOrchestratorIntegration.test.ts",
     "test:role:all": "jest src/migration/role/__tests__/roleOrchestrator.test.ts src/migration/role/__tests__/roleOrchestratorIntegration.test.ts",
-    "test:orchestrators": "jest src/migration/rls/__tests__/*.test.ts src/migration/extension/__tests__/*.test.ts src/migration/table/__tests__/*.test.ts src/migration/enum/__tests__/*.test.ts src/migration/role/__tests__/*.test.ts",
+    "test:orchestrators": "jest src/migration/rls/__tests__/*.test.ts src/migration/extension/__tests__/*.test.ts src/migration/table/__tests__/*.test.ts src/migration/enum/__tests__/*.test.ts src/migration/role/__tests__/*.test.ts src/migration/relation/__tests__/*.test.ts",
     "start": "node dist/index.js",
     "preview": "ts-node src/preview.ts",
     "preview:migration": "ts-node src/preview-migration.ts",
@@ -43,6 +46,8 @@
     "migrate:down": "ts-node src/cli/runMigrations.ts down",
     "migrate:status": "ts-node src/cli/runMigrations.ts status",
     "migrate:generate": "ts-node src/cli/runMigrations.ts generate",
+    "migrate:generate:full": "ts-node src/cli/runMigrations.ts generate --force-full",
+    "migrate:init-state": "ts-node src/cli/runMigrations.ts init-state",
     "example:extension-comparison": "node examples/extension-comparison.js"
   },
   "dependencies": {

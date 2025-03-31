@@ -26,6 +26,7 @@ export interface MigrationOptions {
   includeRLS?: boolean;
   includeRoles?: boolean;
   includePolicies?: boolean;
+  includeRelations?: boolean;
 }
 
 export interface MigrationGenerator {
@@ -55,4 +56,28 @@ export interface MigrationGenerator {
    * @param options Migration generation options
    */
   generateRollbackMigration(schema: Schema, options?: MigrationOptions): Migration;
+}
+
+/**
+ * Represents the result of a migration steps generation process
+ */
+export interface GenerateMigrationResult {
+  /**
+   * Migration steps to be executed
+   */
+  steps: MigrationStep[];
+  
+  /**
+   * Objects affected by the migration
+   */
+  affectedObjects: {
+    tables: Schema['models'];
+    enums: Schema['enums'];
+    extensions: Schema['extensions'];
+    roles: Schema['roles'];
+    relations?: Array<{
+      model: Schema['models'][0];
+      relation: Schema['models'][0]['relations'][0];
+    }>;
+  };
 } 

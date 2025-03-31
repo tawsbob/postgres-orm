@@ -8,7 +8,7 @@ extension uuid-ossp
 enum UserRole {
   ADMIN
   USER
-  GUEST
+  PUBLIC
 }
 
 enum OrderStatus {
@@ -22,16 +22,15 @@ enum OrderStatus {
 model User {
   id            UUID            @id @default(gen_random_uuid())
   email         VARCHAR(255)    @unique
-  name          VARCHAR(100)
+  name          VARCHAR(150)
   role          UserRole        @default(USER)
   age           SMALLINT
-  balance       DECIMAL(10,2)
+  balance       INTEGER
   isActive      BOOLEAN         @default(true)
   createdAt     TIMESTAMP       @default(now())
   updatedAt     TIMESTAMP       @updatedAt
   profile       Profile?        @relation("UserProfile")
   orders        Order[]
-  preferences   JSONB
 
    @@rowLevelSecurity(enabled: true, force: true)
 
@@ -92,6 +91,12 @@ model ProductOrder {
   order         Order           @relation(fields: [orderId], references: [id])
   product       Product         @relation(fields: [productId], references: [id])
 } 
+
+model Testing {
+  id            SERIAL          @id
+  name          VARCHAR(150)
+  createdAt     TIMESTAMP       @default(now())
+}
 
 role logdUser {
   privileges: ["select", "insert", "update"] on User

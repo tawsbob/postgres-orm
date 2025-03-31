@@ -1,5 +1,5 @@
 import { Schema } from '../parser/types';
-import { Migration, MigrationOptions, MigrationStep } from './types';
+import { Migration, MigrationOptions, MigrationStep, GenerateMigrationResult } from './types';
 import { SQLGenerator } from './sqlGenerator';
 import { ExtensionOrchestrator } from './extension/extensionOrchestrator';
 import { TableOrchestrator } from './table/tableOrchestrator';
@@ -7,6 +7,7 @@ import { EnumOrchestrator } from './enum/enumOrchestrator';
 import { RLSOrchestrator } from './rls/rlsOrchestrator';
 import { PolicyOrchestrator } from './rls/policyOrchestrator';
 import { RoleOrchestrator } from './role/roleOrchestrator';
+import { RelationOrchestrator } from './relation/relationOrchestrator';
 
 export class MigrationGenerator {
   private static readonly DEFAULT_SCHEMA = 'public';
@@ -16,6 +17,7 @@ export class MigrationGenerator {
   private rlsOrchestrator: RLSOrchestrator;
   private policyOrchestrator: PolicyOrchestrator;
   private roleOrchestrator: RoleOrchestrator;
+  private relationOrchestrator: RelationOrchestrator;
 
   constructor() {
     this.extensionOrchestrator = new ExtensionOrchestrator();
@@ -24,6 +26,7 @@ export class MigrationGenerator {
     this.rlsOrchestrator = new RLSOrchestrator();
     this.policyOrchestrator = new PolicyOrchestrator();
     this.roleOrchestrator = new RoleOrchestrator();
+    this.relationOrchestrator = new RelationOrchestrator();
   }
 
   private getTableDependencies(model: Schema['models'][0]): string[] {
@@ -86,7 +89,8 @@ export class MigrationGenerator {
       includeIndexes = true,
       includeRLS = true,
       includeRoles = true,
-      includePolicies = true
+      includePolicies = true,
+      includeRelations = true
     } = options;
 
     const steps: MigrationStep[] = [];
@@ -123,6 +127,17 @@ export class MigrationGenerator {
       
       const tableSteps = this.tableOrchestrator.generateTableMigrationSteps(tableDiff, schemaName);
       steps.push(...tableSteps);
+    }
+    
+    // Handle Relations using the relation orchestrator
+    if (includeRelations) {
+      const relationDiff = this.relationOrchestrator.compareRelations(
+        fromSchema.models,
+        toSchema.models
+      );
+      
+      const relationSteps = this.relationOrchestrator.generateRelationMigrationSteps(relationDiff, schemaName);
+      steps.push(...relationSteps);
     }
     
     // Handle RLS using the RLS orchestrator
@@ -184,7 +199,8 @@ export class MigrationGenerator {
       includeIndexes = true,
       includeRLS = true,
       includeRoles = true,
-      includePolicies = true
+      includePolicies = true,
+      includeRelations = true
     } = options;
 
     const steps: MigrationStep[] = [];
@@ -240,8 +256,8 @@ export class MigrationGenerator {
           rollbackSql: dropTableSql
         });
 
-        // Add constraints for relations
-        if (includeConstraints) {
+        // Add relations as foreign key constraints
+        if (includeRelations && includeConstraints) {
           model.relations.forEach(relation => {
             if (relation.fields && relation.references) {
               const constraintSql = SQLGenerator.generateCreateForeignKeySQL(model, relation, schemaName);
@@ -361,5 +377,119 @@ export class MigrationGenerator {
   private generateVersion(timestamp: string): string {
     // Format: YYYYMMDDHHMMSS
     return timestamp.replace(/[^0-9]/g, '').slice(0, 14);
+  }
+
+  /**
+   * Generate migration steps for schema changes
+   * 
+   * @param fromSchema Source schema
+   * @param toSchema Target schema
+   * @param migrationName Migration name
+   * @returns Array of migration steps and affected objects
+   */
+  generateMigrationSteps(fromSchema: Schema, toSchema: Schema, migrationName: string): GenerateMigrationResult {
+    console.log(`Generating migration steps for "${migrationName}"`);
+    
+    // Calculate diffs for each object type
+    const tableDiff = this.tableOrchestrator.compareTables(fromSchema.models, toSchema.models);
+    const relationDiff = this.relationOrchestrator.compareRelations(fromSchema.models, toSchema.models);
+    const enumDiff = this.enumOrchestrator.compareEnums(fromSchema.enums, toSchema.enums);
+    const extensionDiff = this.extensionOrchestrator.compareExtensions(fromSchema.extensions, toSchema.extensions);
+    const roleDiff = this.roleOrchestrator.compareRoles(fromSchema.roles, toSchema.roles);
+
+    // Debug logging for relation updates
+    if (relationDiff.updated.length > 0) {
+      console.log(`Found ${relationDiff.updated.length} relations with updates:`);
+      relationDiff.updated.forEach(update => {
+        console.log(`- Model ${update.model.name}, Relation ${update.relation.name}:`);
+        console.log(`  - Previous: ${update.previousRelation.type} to ${update.previousRelation.model}`);
+        console.log(`  - New: ${update.relation.type} to ${update.relation.model}`);
+        
+        if (update.previousRelation.fields?.join(',') !== update.relation.fields?.join(',')) {
+          console.log(`  - Fields: [${update.previousRelation.fields}] -> [${update.relation.fields}]`);
+        }
+        
+        if (update.previousRelation.references?.join(',') !== update.relation.references?.join(',')) {
+          console.log(`  - References: [${update.previousRelation.references}] -> [${update.relation.references}]`);
+        }
+      });
+    }
+    
+    // Debug logging for updates (existing code for table diffs)
+    if (tableDiff.updated.length > 0) {
+      console.log(`Found ${tableDiff.updated.length} tables with updates:`);
+      tableDiff.updated.forEach(update => {
+        console.log(`- Table ${update.model.name}:`);
+        if (update.fieldsAdded.length > 0) {
+          console.log(`  - Added fields: ${update.fieldsAdded.map(f => f.name).join(', ')}`);
+        }
+        if (update.fieldsRemoved.length > 0) {
+          console.log(`  - Removed fields: ${update.fieldsRemoved.map(f => f.name).join(', ')}`);
+        }
+        if (update.fieldsUpdated.length > 0) {
+          console.log(`  - Updated fields:`);
+          update.fieldsUpdated.forEach(fieldUpdate => {
+            const { field, previousField } = fieldUpdate;
+            console.log(`    - ${field.name}:`);
+            
+            if (previousField.type !== field.type) {
+              console.log(`      Type: ${previousField.type} -> ${field.type}`);
+            }
+            
+            if (previousField.length !== field.length) {
+              console.log(`      Length: ${previousField.length} -> ${field.length}`);
+            }
+            
+            if (previousField.precision !== field.precision) {
+              console.log(`      Precision: ${previousField.precision} -> ${field.precision}`);
+            }
+            
+            if (previousField.scale !== field.scale) {
+              console.log(`      Scale: ${previousField.scale} -> ${field.scale}`);
+            }
+            
+            if (previousField.defaultValue !== field.defaultValue) {
+              console.log(`      Default: ${previousField.defaultValue} -> ${field.defaultValue}`);
+            }
+            
+            const prevAttrs = previousField.attributes.sort().join(',');
+            const newAttrs = field.attributes.sort().join(',');
+            if (prevAttrs !== newAttrs) {
+              console.log(`      Attributes: [${prevAttrs}] -> [${newAttrs}]`);
+            }
+          });
+        }
+      });
+    }
+
+    // Generate migration steps for each object type
+    const tableSteps = this.tableOrchestrator.generateTableMigrationSteps(tableDiff);
+    const relationSteps = this.relationOrchestrator.generateRelationMigrationSteps(relationDiff);
+    const enumSteps = this.enumOrchestrator.generateEnumMigrationSteps(enumDiff);
+    const extensionSteps = this.extensionOrchestrator.generateExtensionMigrationSteps(extensionDiff);
+    const roleSteps = this.roleOrchestrator.generateRoleMigrationSteps(roleDiff);
+
+    // Combine all steps
+    const migrationSteps: MigrationStep[] = [
+      ...tableSteps,
+      ...relationSteps,
+      ...enumSteps,
+      ...extensionSteps,
+      ...roleSteps
+    ];
+
+    return {
+      steps: migrationSteps,
+      affectedObjects: {
+        tables: tableDiff.updated.map(update => update.model),
+        relations: relationDiff.updated.map(update => ({ 
+          model: update.model, 
+          relation: update.relation
+        })),
+        enums: enumDiff.updated.map(update => update.enum),
+        extensions: extensionDiff.updated.map(update => update.extension),
+        roles: roleDiff.updated.map(update => update.role)
+      }
+    };
   }
 } 

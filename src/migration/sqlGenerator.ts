@@ -40,9 +40,25 @@ END $$;`;
         sql += `${baseType}[]`;
       }
     } else {
-      // Handle types with length/precision
-      if (field.length) {
-        sql += `${field.type}(${field.length}${field.scale ? `,${field.scale}` : ''})`;
+      // Handle types with length/precision/scale
+      if (field.type === 'VARCHAR' || field.type === 'CHAR') {
+        // Handle character types with length
+        if (field.length !== undefined) {
+          sql += `${field.type}(${field.length})`;
+        } else {
+          sql += field.type;
+        }
+      } else if (field.type === 'DECIMAL' || field.type === 'NUMERIC') {
+        // Handle numeric types with precision and scale
+        if (field.precision !== undefined) {
+          if (field.scale !== undefined) {
+            sql += `${field.type}(${field.precision},${field.scale})`;
+          } else {
+            sql += `${field.type}(${field.precision})`;
+          }
+        } else {
+          sql += field.type;
+        }
       } else {
         // Check if the type is an enum
         if (field.type === 'UserRole' || field.type === 'OrderStatus') {
@@ -266,12 +282,24 @@ END $$;`);
     let alterSql = `ALTER TABLE "${schemaName}"."${tableName}" 
   ALTER COLUMN "${newField.name}"`;
 
-    // Check if type has changed
-    if (oldField.type !== newField.type || 
-        oldField.length !== newField.length || 
-        oldField.precision !== newField.precision || 
-        oldField.scale !== newField.scale) {
-      
+    // Check if type has changed or any of its parameters (length, precision, scale)
+    const typeChanged = oldField.type !== newField.type;
+    const lengthChanged = 
+      (oldField.length === undefined && newField.length !== undefined) || 
+      (oldField.length !== undefined && newField.length === undefined) || 
+      (oldField.length !== newField.length);
+    
+    const precisionChanged = 
+      (oldField.precision === undefined && newField.precision !== undefined) || 
+      (oldField.precision !== undefined && newField.precision === undefined) || 
+      (oldField.precision !== newField.precision);
+    
+    const scaleChanged = 
+      (oldField.scale === undefined && newField.scale !== undefined) || 
+      (oldField.scale !== undefined && newField.scale === undefined) || 
+      (oldField.scale !== newField.scale);
+
+    if (typeChanged || lengthChanged || precisionChanged || scaleChanged) {
       let typeDefinition = '';
       
       // Handle array types
@@ -285,8 +313,14 @@ END $$;`);
         }
       } else {
         // Handle types with length/precision
-        if (newField.length) {
-          typeDefinition = `${newField.type}(${newField.length}${newField.scale ? `,${newField.scale}` : ''})`;
+        if (newField.length !== undefined) {
+          if (newField.precision !== undefined && newField.scale !== undefined) {
+            // Handle numeric types with precision and scale
+            typeDefinition = `${newField.type}(${newField.precision},${newField.scale})`;
+          } else {
+            // Handle types with just length like VARCHAR
+            typeDefinition = `${newField.type}(${newField.length})`;
+          }
         } else {
           // Check if the type is an enum
           if (newField.type === 'UserRole' || newField.type === 'OrderStatus') {

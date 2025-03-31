@@ -1,11 +1,13 @@
 export type FieldType = 
   | 'UUID'
   | 'VARCHAR'
+  | 'CHAR'
   | 'TEXT'
   | 'SMALLINT'
   | 'INTEGER'
   | 'SERIAL'
   | 'DECIMAL'
+  | 'NUMERIC'
   | 'BOOLEAN'
   | 'TIMESTAMP'
   | 'JSONB'
