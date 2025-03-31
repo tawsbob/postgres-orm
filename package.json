@@ -19,14 +19,18 @@
     "migrate": "ts-node src/cli/runMigrations.ts",
     "migrate:up": "ts-node src/cli/runMigrations.ts up",
     "migrate:down": "ts-node src/cli/runMigrations.ts down",
-    "migrate:status": "ts-node src/cli/runMigrations.ts status"
+    "migrate:status": "ts-node src/cli/runMigrations.ts status",
+    "migrate:generate": "ts-node src/cli/runMigrations.ts generate"
   },
   "dependencies": {
     "@types/pg": "^8.11.11",
+    "dotenv": "^16.4.7",
+    "inquirer": "^8.2.6",
     "pg": "^8.14.1",
     "typescript": "^5.0.0"
   },
   "devDependencies": {
+    "@types/inquirer": "^9.0.7",
     "@types/jest": "^29.0.0",
     "@types/node": "^20.0.0",
     "jest": "^29.0.0",
