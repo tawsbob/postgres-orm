@@ -3,3 +3,4 @@ export { MigrationGenerator as SqlMigrationGenerator } from './migrationGenerato
 export * from './migrationWriter';
 export * from './sqlGenerator';
 export * from './runner';
+export { TableOrchestrator } from './table/tableOrchestrator';

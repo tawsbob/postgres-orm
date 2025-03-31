@@ -243,4 +243,104 @@ END $$;`);
   ): string {
     return `DROP POLICY IF EXISTS "${policy.name}" ON "${schemaName}"."${model.name}";`;
   }
+
+  static generateAddColumnSQL(tableName: string, field: Field, schemaName: string = this.DEFAULT_SCHEMA): string {
+    const fieldDefinition = this.generateFieldSQL(field, schemaName);
+    
+    return `ALTER TABLE "${schemaName}"."${tableName}" 
+  ADD COLUMN ${fieldDefinition};`;
+  }
+
+  static generateDropColumnSQL(tableName: string, fieldName: string, schemaName: string = this.DEFAULT_SCHEMA): string {
+    return `ALTER TABLE "${schemaName}"."${tableName}" 
+  DROP COLUMN IF EXISTS "${fieldName}";`;
+  }
+
+  static generateAlterColumnSQL(
+    tableName: string, 
+    oldField: Field, 
+    newField: Field, 
+    schemaName: string = this.DEFAULT_SCHEMA
+  ): string {
+    // Start with changing the data type
+    let alterSql = `ALTER TABLE "${schemaName}"."${tableName}" 
+  ALTER COLUMN "${newField.name}"`;
+
+    // Check if type has changed
+    if (oldField.type !== newField.type || 
+        oldField.length !== newField.length || 
+        oldField.precision !== newField.precision || 
+        oldField.scale !== newField.scale) {
+      
+      let typeDefinition = '';
+      
+      // Handle array types
+      if (newField.type.endsWith('[]')) {
+        const baseType = newField.type.slice(0, -2);
+        // Check if the base type is an enum
+        if (baseType === 'UserRole' || baseType === 'OrderStatus') {
+          typeDefinition = `"${schemaName}"."${baseType}"[]`;
+        } else {
+          typeDefinition = `${baseType}[]`;
+        }
+      } else {
+        // Handle types with length/precision
+        if (newField.length) {
+          typeDefinition = `${newField.type}(${newField.length}${newField.scale ? `,${newField.scale}` : ''})`;
+        } else {
+          // Check if the type is an enum
+          if (newField.type === 'UserRole' || newField.type === 'OrderStatus') {
+            typeDefinition = `"${schemaName}"."${newField.type}"`;
+          } else {
+            typeDefinition = newField.type;
+          }
+        }
+      }
+
+      alterSql += ` TYPE ${typeDefinition} USING "${newField.name}"::${typeDefinition}`;
+    }
+
+    // Handle default value changes
+    const oldDefault = oldField.attributes.includes('default') ? oldField.defaultValue : null;
+    const newDefault = newField.attributes.includes('default') ? newField.defaultValue : null;
+
+    if (oldDefault !== newDefault) {
+      if (newDefault) {
+        // Cast default value to enum type if the field is an enum
+        if (newField.type === 'UserRole' || newField.type === 'OrderStatus') {
+          alterSql += `,\n  ALTER COLUMN "${newField.name}" SET DEFAULT '${newField.defaultValue}'::"${schemaName}"."${newField.type}"`;
+        } else {
+          alterSql += `,\n  ALTER COLUMN "${newField.name}" SET DEFAULT ${newField.defaultValue}`;
+        }
+      } else {
+        alterSql += `,\n  ALTER COLUMN "${newField.name}" DROP DEFAULT`;
+      }
+    }
+
+    // Handle NOT NULL constraint
+    // Instead of checking for 'notNull' attribute which doesn't exist,
+    // we'll check for the absence of 'optional' attribute or equivalent logic
+    const oldNullable = !oldField.attributes.some(attr => attr === 'default' || attr === 'id'); 
+    const newNullable = !newField.attributes.some(attr => attr === 'default' || attr === 'id');
+    
+    if (oldNullable && !newNullable) {
+      alterSql += `,\n  ALTER COLUMN "${newField.name}" SET NOT NULL`;
+    } else if (!oldNullable && newNullable) {
+      alterSql += `,\n  ALTER COLUMN "${newField.name}" DROP NOT NULL`;
+    }
+
+    // Handle unique constraint changes
+    const oldUnique = oldField.attributes.includes('unique');
+    const newUnique = newField.attributes.includes('unique');
+
+    if (!oldUnique && newUnique) {
+      const indexName = `idx_${tableName}_${newField.name}`;
+      alterSql += `;\n\nCREATE UNIQUE INDEX "${indexName}" ON "${schemaName}"."${tableName}" ("${newField.name}")`;
+    } else if (oldUnique && !newUnique) {
+      const indexName = `idx_${tableName}_${oldField.name}`;
+      alterSql += `;\n\nDROP INDEX IF EXISTS "${schemaName}"."${indexName}"`;
+    }
+
+    return alterSql + ';';
+  }
 } 

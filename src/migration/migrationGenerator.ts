@@ -2,13 +2,16 @@ import { Schema } from '../parser/types';
 import { Migration, MigrationOptions, MigrationStep } from './types';
 import { SQLGenerator } from './sqlGenerator';
 import { ExtensionOrchestrator } from './extension/extensionOrchestrator';
+import { TableOrchestrator } from './table/tableOrchestrator';
 
 export class MigrationGenerator {
   private static readonly DEFAULT_SCHEMA = 'public';
   private extensionOrchestrator: ExtensionOrchestrator;
+  private tableOrchestrator: TableOrchestrator;
 
   constructor() {
     this.extensionOrchestrator = new ExtensionOrchestrator();
+    this.tableOrchestrator = new TableOrchestrator();
   }
 
   private getTableDependencies(model: Schema['models'][0]): string[] {
@@ -88,8 +91,181 @@ export class MigrationGenerator {
       steps.push(...extensionSteps);
     }
 
-    // TODO: Add comparison logic for other schema objects (enums, tables, etc.)
-    // This implementation focuses only on extensions for now
+    // Handle enums using direct comparison
+    if (includeEnums) {
+      // Create a map of enums by name for easier lookup
+      const fromEnumsMap = new Map();
+      fromSchema.enums.forEach(enumDef => fromEnumsMap.set(enumDef.name, enumDef));
+      
+      const toEnumsMap = new Map();
+      toSchema.enums.forEach(enumDef => toEnumsMap.set(enumDef.name, enumDef));
+      
+      // Find added enums
+      toSchema.enums.forEach(enumDef => {
+        if (!fromEnumsMap.has(enumDef.name)) {
+          steps.push({
+            type: 'create',
+            objectType: 'enum',
+            name: enumDef.name,
+            sql: SQLGenerator.generateCreateEnumSQL(enumDef, schemaName),
+            rollbackSql: SQLGenerator.generateDropEnumSQL(enumDef, schemaName)
+          });
+        }
+      });
+      
+      // Find removed enums
+      fromSchema.enums.forEach(enumDef => {
+        if (!toEnumsMap.has(enumDef.name)) {
+          steps.push({
+            type: 'drop',
+            objectType: 'enum',
+            name: enumDef.name,
+            sql: SQLGenerator.generateDropEnumSQL(enumDef, schemaName),
+            rollbackSql: SQLGenerator.generateCreateEnumSQL(enumDef, schemaName)
+          });
+        }
+      });
+      
+      // Find updated enums
+      // This is more complex as we need to drop and recreate enum types
+      toSchema.enums.forEach(enumDef => {
+        const fromEnum = fromEnumsMap.get(enumDef.name);
+        if (fromEnum) {
+          // Check if values have changed
+          const fromValues = new Set(fromEnum.values);
+          const toValues = new Set(enumDef.values);
+          
+          // Check if values are different
+          if (fromValues.size !== toValues.size || 
+              !fromEnum.values.every((value: string) => toValues.has(value))) {
+            
+            // Drop and recreate the enum type
+            steps.push({
+              type: 'drop',
+              objectType: 'enum',
+              name: `${enumDef.name}_drop`,
+              sql: SQLGenerator.generateDropEnumSQL(enumDef, schemaName),
+              rollbackSql: SQLGenerator.generateCreateEnumSQL(fromEnum, schemaName)
+            });
+            
+            steps.push({
+              type: 'create',
+              objectType: 'enum',
+              name: enumDef.name,
+              sql: SQLGenerator.generateCreateEnumSQL(enumDef, schemaName),
+              rollbackSql: SQLGenerator.generateDropEnumSQL(enumDef, schemaName)
+            });
+          }
+        }
+      });
+    }
+
+    // Handle tables using the table orchestrator
+    if (includeTables) {
+      const tableDiff = this.tableOrchestrator.compareTables(
+        fromSchema.models, 
+        toSchema.models
+      );
+      
+      const tableSteps = this.tableOrchestrator.generateTableMigrationSteps(tableDiff, schemaName);
+      steps.push(...tableSteps);
+    }
+
+    // Handle roles
+    if (includeRoles) {
+      // Create a map of roles by name for easier lookup
+      const fromRolesMap = new Map();
+      fromSchema.roles.forEach(role => fromRolesMap.set(role.name, role));
+      
+      const toRolesMap = new Map();
+      toSchema.roles.forEach(role => toRolesMap.set(role.name, role));
+      
+      // Find added roles
+      toSchema.roles.forEach(role => {
+        if (!fromRolesMap.has(role.name)) {
+          const roleSql = SQLGenerator.generateCreateRoleSQL(role, schemaName);
+          const dropRoleSql = SQLGenerator.generateDropRoleSQL(role, schemaName);
+          
+          // Create role step
+          steps.push({
+            type: 'create',
+            objectType: 'role',
+            name: `${role.name}_create`,
+            sql: roleSql[0],
+            rollbackSql: dropRoleSql[0]
+          });
+          
+          // Grant privileges steps
+          roleSql.slice(1).forEach((sql, index) => {
+            steps.push({
+              type: 'create',
+              objectType: 'role',
+              name: `${role.name}_grant_${index}`,
+              sql,
+              rollbackSql: '' // No specific rollback for grants, dropping the role revokes everything
+            });
+          });
+        }
+      });
+      
+      // Find removed roles
+      fromSchema.roles.forEach(role => {
+        if (!toRolesMap.has(role.name)) {
+          const dropRoleSql = SQLGenerator.generateDropRoleSQL(role, schemaName);
+          const createRoleSql = SQLGenerator.generateCreateRoleSQL(role, schemaName);
+          
+          steps.push({
+            type: 'drop',
+            objectType: 'role',
+            name: role.name,
+            sql: dropRoleSql[0],
+            rollbackSql: createRoleSql[0]
+          });
+        }
+      });
+      
+      // Find updated roles
+      // This is more complex as we need to compare privileges
+      toSchema.roles.forEach(role => {
+        const fromRole = fromRolesMap.get(role.name);
+        if (fromRole) {
+          // Check if privileges have changed
+          // For simplicity, we'll drop and recreate the role if anything changed
+          if (JSON.stringify(fromRole.privileges) !== JSON.stringify(role.privileges)) {
+            // Drop the old role
+            const dropRoleSql = SQLGenerator.generateDropRoleSQL(role, schemaName);
+            steps.push({
+              type: 'drop',
+              objectType: 'role',
+              name: `${role.name}_drop`,
+              sql: dropRoleSql[0],
+              rollbackSql: '' // Will be recreated in next step
+            });
+            
+            // Create the new role
+            const createRoleSql = SQLGenerator.generateCreateRoleSQL(role, schemaName);
+            steps.push({
+              type: 'create',
+              objectType: 'role',
+              name: `${role.name}_create`,
+              sql: createRoleSql[0],
+              rollbackSql: '' // No specific rollback needed here
+            });
+            
+            // Grant new privileges
+            createRoleSql.slice(1).forEach((sql, index) => {
+              steps.push({
+                type: 'create',
+                objectType: 'role',
+                name: `${role.name}_grant_${index}`,
+                sql,
+                rollbackSql: '' // No specific rollback for grants
+              });
+            });
+          }
+        }
+      });
+    }
 
     return {
       version: this.generateVersion(timestamp),
