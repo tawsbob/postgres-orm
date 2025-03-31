@@ -83,6 +83,23 @@ function printSchema(schema: any, indent: string = ''): void {
         console.log(indent + `        Using: ${policy.using}`);
       });
     }
+    
+    // Print Triggers
+    if (model.triggers && model.triggers.length > 0) {
+      console.log(indent + '    ⚡ Triggers:');
+      model.triggers.forEach((trigger: any, index: number) => {
+        console.log(indent + `      - Trigger ${index + 1}:`);
+        console.log(indent + `        Event: ${trigger.event}`);
+        console.log(indent + `        Level: ${trigger.level}`);
+        console.log(indent + `        Execute:`);
+        
+        // Format and print the trigger code
+        const codeLines = trigger.execute.split('\n');
+        codeLines.forEach((line: string) => {
+          console.log(indent + `          ${line}`);
+        });
+      });
+    }
   });
 }
 
@@ -98,4 +115,5 @@ console.log(`Total Models: ${schema.models.length}`);
 console.log(`Total Enums: ${schema.enums.length}`);
 console.log(`Total Roles: ${schema.roles.length}`);
 console.log(`Total Relations: ${schema.models.reduce((acc: number, model: any) => acc + model.relations.length, 0)}`);
-console.log(`Total Policies: ${schema.models.reduce((acc: number, model: any) => acc + (model.policies ? model.policies.length : 0), 0)}`); 
+console.log(`Total Policies: ${schema.models.reduce((acc: number, model: any) => acc + (model.policies ? model.policies.length : 0), 0)}`);
+console.log(`Total Triggers: ${schema.models.reduce((acc: number, model: any) => acc + (model.triggers ? model.triggers.length : 0), 0)}`); 

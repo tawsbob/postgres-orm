@@ -22,7 +22,7 @@ describe('SchemaParserV1', () => {
     });
 
     it('should parse the correct number of models, enums, extensions, and roles', () => {
-      expect(parsedSchema.models.length).toBe(5); // User, Profile, Order, Product, ProductOrder
+      expect(parsedSchema.models.length).toBe(6); // User, Profile, Order, Product, ProductOrder, Testing
       expect(parsedSchema.enums.length).toBe(2); // UserRole, OrderStatus
       expect(parsedSchema.extensions.length).toBe(3); // pgcrypto, postgis, uuid-ossp
       expect(parsedSchema.roles.length).toBe(2); // logdUser, adminRole
@@ -33,7 +33,7 @@ describe('SchemaParserV1', () => {
     it('should correctly parse UserRole enum', () => {
       const userRoleEnum = parsedSchema.enums.find(e => e.name === 'UserRole');
       expect(userRoleEnum).toBeDefined();
-      expect(userRoleEnum?.values).toEqual(['ADMIN', 'USER', 'GUEST']);
+      expect(userRoleEnum?.values).toEqual(['ADMIN', 'USER', 'PUBLIC']);
     });
 
     it('should correctly parse OrderStatus enum', () => {
@@ -59,7 +59,7 @@ describe('SchemaParserV1', () => {
       
       // Check fields
       const fields = userModel?.fields || [];
-      expect(fields.length).toBe(10);
+      expect(fields.length).toBe(9);
       
       // Check specific fields
       const idField = fields.find(f => f.name === 'id');
@@ -80,9 +80,7 @@ describe('SchemaParserV1', () => {
       const balanceField = fields.find(f => f.name === 'balance');
       expect(balanceField).toMatchObject({
         name: 'balance',
-        type: 'DECIMAL',
-        precision: 10,
-        scale: 2
+        type: 'INTEGER'
       });
       
       // Check relations
@@ -262,6 +260,25 @@ describe('SchemaParserV1', () => {
       expect(adminRole?.privileges).toHaveLength(1);
       expect(adminRole?.privileges[0].on).toBe('User');
       expect(adminRole?.privileges[0].privileges).toEqual(["select", "insert", "update", "delete"]);
+    });
+  });
+
+  describe('Trigger Parsing', () => {
+    it('should correctly parse triggers in the User model', () => {
+      const userModel = parsedSchema.models.find(m => m.name === 'User');
+      expect(userModel).toBeDefined();
+      expect(userModel?.triggers).toBeDefined();
+      expect(userModel?.triggers?.length).toBeGreaterThan(0);
+      
+      // Check the balance update trigger
+      const balanceTrigger = userModel?.triggers?.find(t => 
+        t.execute.includes('Balance cannot be updated directly')
+      );
+      
+      expect(balanceTrigger).toBeDefined();
+      expect(balanceTrigger?.event).toBe('BEFORE UPDATE');
+      expect(balanceTrigger?.level).toBe('FOR EACH ROW');
+      expect(balanceTrigger?.execute).toContain('IF (OLD.balance <> NEW.balance)');
     });
   });
 

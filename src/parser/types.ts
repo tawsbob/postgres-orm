@@ -52,12 +52,22 @@ export interface Policy {
   using: string;
 }
 
+export type TriggerEvent = 'BEFORE INSERT' | 'AFTER INSERT' | 'BEFORE UPDATE' | 'AFTER UPDATE' | 'BEFORE DELETE' | 'AFTER DELETE';
+export type TriggerLevel = 'FOR EACH ROW' | 'FOR EACH STATEMENT';
+
+export interface Trigger {
+  event: TriggerEvent;
+  level: TriggerLevel;
+  execute: string;
+}
+
 export interface Model {
   name: string;
   fields: Field[];
   relations: Relation[];
   rowLevelSecurity?: RowLevelSecurity;
   policies?: Policy[];
+  triggers?: Trigger[];
 }
 
 export interface Enum {

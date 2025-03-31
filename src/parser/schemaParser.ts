@@ -1,4 +1,4 @@
-import { Schema, Model, Enum, Field, Relation, Extension, RowLevelSecurity, Role, Privilege, Policy, FieldType, FieldAttribute } from './types';
+import { Schema, Model, Enum, Field, Relation, Extension, RowLevelSecurity, Role, Privilege, Policy, FieldType, FieldAttribute, Trigger, TriggerEvent, TriggerLevel } from './types';
 import fs from 'fs';
 import path from 'path';
 
@@ -371,6 +371,47 @@ export default class SchemaParserV1 {
   }
 
   /**
+   * Parse a trigger definition
+   * @param triggerText The text containing the trigger definition
+   * @returns Trigger object with parsed properties
+   */
+  private parseTrigger(triggerText: string): Trigger {
+    try {
+      // Extract the event type (BEFORE UPDATE, AFTER INSERT, etc.)
+      const eventMatch = triggerText.match(/@@trigger\("([^"]+)"/);
+      if (!eventMatch) {
+        throw new Error(`Missing trigger event in: ${triggerText}`);
+      }
+      
+      const event = eventMatch[1] as TriggerEvent;
+      
+      // Extract level (FOR EACH ROW or FOR EACH STATEMENT)
+      const levelMatch = triggerText.match(/level:\s*"([^"]+)"/);
+      if (!levelMatch) {
+        throw new Error(`Missing trigger level in: ${triggerText}`);
+      }
+      
+      const level = levelMatch[1] as TriggerLevel;
+      
+      // Extract the execute code - handling multiline strings with triple quotes
+      const executeMatch = triggerText.match(/execute:\s*"""([\s\S]*?)"""/);
+      if (!executeMatch) {
+        throw new Error(`Missing or invalid trigger execute in: ${triggerText}`);
+      }
+      
+      const execute = executeMatch[1].trim();
+      
+      return {
+        event,
+        level,
+        execute
+      };
+    } catch (error) {
+      throw new Error(`Failed to parse trigger: ${triggerText}. ${(error as Error).message}`);
+    }
+  }
+
+  /**
    * Parse a model definition
    * @param content The content containing the model definition
    * @returns Model object with parsed properties
@@ -387,6 +428,7 @@ export default class SchemaParserV1 {
       const relations: Relation[] = [];
       let rowLevelSecurity: RowLevelSecurity | undefined;
       const policies: Policy[] = [];
+      const triggers: Trigger[] = [];
 
       // Process the model content line by line
       const lines = modelContent.split('\n');
@@ -420,7 +462,26 @@ export default class SchemaParserV1 {
           continue;
         }
 
-        // Skip any directive lines that start with @@
+        // Handle triggers
+        if (line.includes('@@trigger')) {
+          // Collect the full trigger text (may span multiple lines)
+          let triggerText = line;
+          let braceCount = (line.match(/{/g) || []).length - (line.match(/}/g) || []).length;
+          
+          while (braceCount > 0 && i + 1 < lines.length) {
+            i++;
+            const nextLine = lines[i].trim();
+            triggerText += ' ' + nextLine;
+            
+            braceCount += (nextLine.match(/{/g) || []).length;
+            braceCount -= (nextLine.match(/}/g) || []).length;
+          }
+          
+          triggers.push(this.parseTrigger(triggerText));
+          continue;
+        }
+
+        // Skip any other directive lines that start with @@
         if (line.startsWith('@@')) {
           continue;
         }
@@ -447,7 +508,7 @@ export default class SchemaParserV1 {
         }
       }
 
-      return { name, fields, relations, rowLevelSecurity, policies };
+      return { name, fields, relations, rowLevelSecurity, policies, triggers };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to parse model: ${errorMsg}`);
