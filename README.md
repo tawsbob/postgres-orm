@@ -23,7 +23,7 @@ npm install postgres-orm
 
 ## Usage
 
-1. Create a schema file (e.g., `database.schema`):
+1. Create a schema file (e.g., `schema/database.schema`):
 
 ```schema
 enum UserRole {
@@ -48,7 +48,7 @@ model User {
 import { SchemaParser } from 'postgres-orm';
 
 const parser = new SchemaParser();
-const schema = parser.parseSchema('database.schema');
+const schema = parser.parseSchema('schema/database.schema');
 
 // Access parsed schema
 console.log(schema.models);
@@ -127,7 +127,7 @@ The migration preview tool supports various command-line options:
 
 ```bash
 # Specify a custom schema file
-npm run preview:migration -- --schema custom-schema.schema
+npm run preview:migration -- --schema schema/custom-schema.schema
 
 # Specify an output file
 npm run preview:migration -- --output custom-output.sql
