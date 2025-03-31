@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "test:parser": "jest src/parser/__tests__/schemaParser.test.ts -- --silent=false",
+    "test:parser": "jest src/parser/__tests__/*.test.ts",
+    "test:parser:schema": "jest src/parser/__tests__/schemaParser.test.ts",
+    "test:parser:trigger": "jest src/parser/__tests__/triggerParser.test.ts",
     "test:migration:generator": "jest src/migration/__tests__/migrationGenerator.test.ts",
     "test:migration:runner": "jest src/migration/runner/__tests__/migrationRunner.test.ts",
     "test:migration:integration": "jest --forceExit src/migration/runner/__tests__/integrationTests.test.ts",

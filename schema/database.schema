@@ -90,6 +90,31 @@ model Product {
   createdAt     TIMESTAMP       @default(now())
   updatedAt     TIMESTAMP       @updatedAt
   orders        ProductOrder[]
+  
+  @@trigger("AFTER UPDATE", {
+    level: "FOR EACH ROW",
+    execute: """
+    IF (OLD.stock <> NEW.stock) THEN
+      INSERT INTO product_inventory_log(product_id, old_stock, new_stock, changed_at)
+      VALUES (NEW.id, OLD.stock, NEW.stock, NOW());
+    END IF;
+    """
+  })
+  
+  @@trigger("BEFORE UPDATE", {
+    level: "FOR EACH ROW",
+    execute: """
+    IF (OLD.price <> NEW.price) THEN
+      INSERT INTO product_price_history(product_id, old_price, new_price, changed_at)
+      VALUES (OLD.id, OLD.price, NEW.price, NOW());
+      
+      -- Notify admin if price decreased by more than 25%
+      IF (NEW.price < OLD.price * 0.75) THEN
+        PERFORM pg_notify('price_alerts', 'Product ' || OLD.name || ' price decreased by more than 25%');
+      END IF;
+    END IF;
+    """
+  })
 }
 
 model ProductOrder {
