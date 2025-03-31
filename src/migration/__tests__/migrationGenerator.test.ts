@@ -167,6 +167,63 @@ describe('MigrationGenerator', () => {
     expect(enableRlsStep?.rollbackSql).toContain('DISABLE ROW LEVEL SECURITY');
   });
 
+  test('should handle RLS changes when comparing schemas', () => {
+    // Create a test schema with RLS
+    const fromSchema = {
+      models: [
+        {
+          name: 'User',
+          fields: [],
+          relations: [],
+          rowLevelSecurity: {
+            enabled: true,
+            force: false
+          }
+        }
+      ],
+      enums: [],
+      extensions: [],
+      roles: []
+    };
+
+    // Create a test schema with updated RLS
+    const toSchema = {
+      models: [
+        {
+          name: 'User',
+          fields: [],
+          relations: [],
+          rowLevelSecurity: {
+            enabled: true,
+            force: true // Changed to FORCE
+          }
+        }
+      ],
+      enums: [],
+      extensions: [],
+      roles: []
+    };
+
+    // Generate migration from diff
+    const migration = generator.generateMigrationFromDiff(fromSchema, toSchema, {
+      includeRLS: true,
+      includeExtensions: false,
+      includeEnums: false,
+      includeTables: false,
+      includeRoles: false,
+      includePolicies: false
+    });
+
+    // Verify RLS steps were generated
+    const rlsSteps = migration.steps.filter(step => step.objectType === 'rls');
+    expect(rlsSteps.length).toBe(1);
+    
+    // Verify it's a FORCE RLS step
+    expect(rlsSteps[0].sql).toContain('FORCE ROW LEVEL SECURITY');
+    expect(rlsSteps[0].type).toBe('alter');
+    expect(rlsSteps[0].name).toBe('rls_User_force');
+  });
+
   test('should respect RLS migration option', () => {
     const schema = parser.parseSchema('schema/database.schema');
     const migration = generator.generateMigration(schema, {

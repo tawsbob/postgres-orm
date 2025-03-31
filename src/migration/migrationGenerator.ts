@@ -4,17 +4,20 @@ import { SQLGenerator } from './sqlGenerator';
 import { ExtensionOrchestrator } from './extension/extensionOrchestrator';
 import { TableOrchestrator } from './table/tableOrchestrator';
 import { EnumOrchestrator } from './enum/enumOrchestrator';
+import { RLSOrchestrator } from './rlw/rlsOrchestrator';
 
 export class MigrationGenerator {
   private static readonly DEFAULT_SCHEMA = 'public';
   private extensionOrchestrator: ExtensionOrchestrator;
   private tableOrchestrator: TableOrchestrator;
   private enumOrchestrator: EnumOrchestrator;
+  private rlsOrchestrator: RLSOrchestrator;
 
   constructor() {
     this.extensionOrchestrator = new ExtensionOrchestrator();
     this.tableOrchestrator = new TableOrchestrator();
     this.enumOrchestrator = new EnumOrchestrator();
+    this.rlsOrchestrator = new RLSOrchestrator();
   }
 
   private getTableDependencies(model: Schema['models'][0]): string[] {
@@ -114,6 +117,17 @@ export class MigrationGenerator {
       
       const tableSteps = this.tableOrchestrator.generateTableMigrationSteps(tableDiff, schemaName);
       steps.push(...tableSteps);
+    }
+    
+    // Handle RLS using the RLS orchestrator
+    if (includeRLS) {
+      const rlsDiff = this.rlsOrchestrator.compareRLS(
+        fromSchema.models,
+        toSchema.models
+      );
+      
+      const rlsSteps = this.rlsOrchestrator.generateRLSMigrationSteps(rlsDiff, schemaName);
+      steps.push(...rlsSteps);
     }
 
     // Handle roles
@@ -322,16 +336,16 @@ export class MigrationGenerator {
 
         // Configure RLS
         if (includeRLS && model.rowLevelSecurity) {
-          const rlsSql = SQLGenerator.generateRLSSQL(model, schemaName);
-          rlsSql.forEach((sql, index) => {
-            steps.push({
-              type: 'create',
-              objectType: 'rls',
-              name: `rls_${model.name}_${index}`,
-              sql,
-              rollbackSql: SQLGenerator.generateDisableRLSSQL(model, schemaName)
-            });
-          });
+          // Create fake diff entry for a model with RLS
+          const rlsDiff = {
+            added: [{ model }],
+            removed: [],
+            updated: []
+          };
+          
+          // Use the RLS orchestrator to generate steps
+          const rlsSteps = this.rlsOrchestrator.generateRLSMigrationSteps(rlsDiff, schemaName);
+          steps.push(...rlsSteps);
         }
 
         // Add policies
