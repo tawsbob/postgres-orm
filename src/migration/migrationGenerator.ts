@@ -3,15 +3,18 @@ import { Migration, MigrationOptions, MigrationStep } from './types';
 import { SQLGenerator } from './sqlGenerator';
 import { ExtensionOrchestrator } from './extension/extensionOrchestrator';
 import { TableOrchestrator } from './table/tableOrchestrator';
+import { EnumOrchestrator } from './enum/enumOrchestrator';
 
 export class MigrationGenerator {
   private static readonly DEFAULT_SCHEMA = 'public';
   private extensionOrchestrator: ExtensionOrchestrator;
   private tableOrchestrator: TableOrchestrator;
+  private enumOrchestrator: EnumOrchestrator;
 
   constructor() {
     this.extensionOrchestrator = new ExtensionOrchestrator();
     this.tableOrchestrator = new TableOrchestrator();
+    this.enumOrchestrator = new EnumOrchestrator();
   }
 
   private getTableDependencies(model: Schema['models'][0]): string[] {
@@ -91,73 +94,15 @@ export class MigrationGenerator {
       steps.push(...extensionSteps);
     }
 
-    // Handle enums using direct comparison
+    // Handle enums using the orchestrator
     if (includeEnums) {
-      // Create a map of enums by name for easier lookup
-      const fromEnumsMap = new Map();
-      fromSchema.enums.forEach(enumDef => fromEnumsMap.set(enumDef.name, enumDef));
+      const enumDiff = this.enumOrchestrator.compareEnums(
+        fromSchema.enums, 
+        toSchema.enums
+      );
       
-      const toEnumsMap = new Map();
-      toSchema.enums.forEach(enumDef => toEnumsMap.set(enumDef.name, enumDef));
-      
-      // Find added enums
-      toSchema.enums.forEach(enumDef => {
-        if (!fromEnumsMap.has(enumDef.name)) {
-          steps.push({
-            type: 'create',
-            objectType: 'enum',
-            name: enumDef.name,
-            sql: SQLGenerator.generateCreateEnumSQL(enumDef, schemaName),
-            rollbackSql: SQLGenerator.generateDropEnumSQL(enumDef, schemaName)
-          });
-        }
-      });
-      
-      // Find removed enums
-      fromSchema.enums.forEach(enumDef => {
-        if (!toEnumsMap.has(enumDef.name)) {
-          steps.push({
-            type: 'drop',
-            objectType: 'enum',
-            name: enumDef.name,
-            sql: SQLGenerator.generateDropEnumSQL(enumDef, schemaName),
-            rollbackSql: SQLGenerator.generateCreateEnumSQL(enumDef, schemaName)
-          });
-        }
-      });
-      
-      // Find updated enums
-      // This is more complex as we need to drop and recreate enum types
-      toSchema.enums.forEach(enumDef => {
-        const fromEnum = fromEnumsMap.get(enumDef.name);
-        if (fromEnum) {
-          // Check if values have changed
-          const fromValues = new Set(fromEnum.values);
-          const toValues = new Set(enumDef.values);
-          
-          // Check if values are different
-          if (fromValues.size !== toValues.size || 
-              !fromEnum.values.every((value: string) => toValues.has(value))) {
-            
-            // Drop and recreate the enum type
-            steps.push({
-              type: 'drop',
-              objectType: 'enum',
-              name: `${enumDef.name}_drop`,
-              sql: SQLGenerator.generateDropEnumSQL(enumDef, schemaName),
-              rollbackSql: SQLGenerator.generateCreateEnumSQL(fromEnum, schemaName)
-            });
-            
-            steps.push({
-              type: 'create',
-              objectType: 'enum',
-              name: enumDef.name,
-              sql: SQLGenerator.generateCreateEnumSQL(enumDef, schemaName),
-              rollbackSql: SQLGenerator.generateDropEnumSQL(enumDef, schemaName)
-            });
-          }
-        }
-      });
+      const enumSteps = this.enumOrchestrator.generateEnumMigrationSteps(enumDiff, schemaName);
+      steps.push(...enumSteps);
     }
 
     // Handle tables using the table orchestrator
@@ -316,15 +261,16 @@ export class MigrationGenerator {
 
     // Generate enum steps
     if (includeEnums) {
-      schema.enums.forEach(enumType => {
-        steps.push({
-          type: 'create',
-          objectType: 'enum',
-          name: enumType.name,
-          sql: SQLGenerator.generateCreateEnumSQL(enumType, schemaName),
-          rollbackSql: SQLGenerator.generateDropEnumSQL(enumType, schemaName)
-        });
-      });
+      // Create a simple EnumDiff with only added enums (since this is a new migration)
+      const enumDiff = {
+        added: schema.enums,
+        removed: [],
+        updated: []
+      };
+      
+      // Use the orchestrator to generate steps
+      const enumSteps = this.enumOrchestrator.generateEnumMigrationSteps(enumDiff, schemaName);
+      steps.push(...enumSteps);
     }
 
     // Generate table steps in dependency order
