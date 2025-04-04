@@ -592,7 +592,7 @@ export default class SchemaParserV1 {
       const roleBlocks: string[] = [];
       
       // Extract model blocks
-      const modelBlockRegex = /model\s+\w+\s*{[\s\S]*?^}/gm;
+      const modelBlockRegex = /model\s+\w+\s*{[\s\S]*?(?:^}|\n\s*})\s*$/gm;
       let modelBlockMatch;
       while ((modelBlockMatch = modelBlockRegex.exec(content)) !== null) {
         modelBlocks.push(modelBlockMatch[0]);

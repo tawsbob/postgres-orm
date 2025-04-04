@@ -8,6 +8,7 @@ import { RLSOrchestrator } from './rls/rlsOrchestrator';
 import { PolicyOrchestrator } from './rls/policyOrchestrator';
 import { RoleOrchestrator } from './role/roleOrchestrator';
 import { RelationOrchestrator } from './relation/relationOrchestrator';
+import { TriggerOrchestrator } from './trigger/triggerOrchestrator';
 
 export class MigrationGenerator {
   private static readonly DEFAULT_SCHEMA = 'public';
@@ -18,6 +19,7 @@ export class MigrationGenerator {
   private policyOrchestrator: PolicyOrchestrator;
   private roleOrchestrator: RoleOrchestrator;
   private relationOrchestrator: RelationOrchestrator;
+  private triggerOrchestrator: TriggerOrchestrator;
 
   constructor() {
     this.extensionOrchestrator = new ExtensionOrchestrator();
@@ -27,6 +29,7 @@ export class MigrationGenerator {
     this.policyOrchestrator = new PolicyOrchestrator();
     this.roleOrchestrator = new RoleOrchestrator();
     this.relationOrchestrator = new RelationOrchestrator();
+    this.triggerOrchestrator = new TriggerOrchestrator();
   }
 
   private getTableDependencies(model: Schema['models'][0]): string[] {
@@ -90,7 +93,8 @@ export class MigrationGenerator {
       includeRLS = true,
       includeRoles = true,
       includePolicies = true,
-      includeRelations = true
+      includeRelations = true,
+      includeTriggers = true
     } = options;
 
     const steps: MigrationStep[] = [];
@@ -171,6 +175,16 @@ export class MigrationGenerator {
       
       const roleSteps = this.roleOrchestrator.generateRoleMigrationSteps(roleDiff, schemaName);
       steps.push(...roleSteps);
+    }
+
+    // Handle triggers using the trigger orchestrator
+    if (includeTriggers) {
+      const triggerSteps = this.triggerOrchestrator.generateTriggerSteps(
+        fromSchema,
+        toSchema,
+        { schemaName }
+      );
+      steps.push(...triggerSteps);
     }
 
     return {

@@ -2,7 +2,7 @@ import { Schema } from '../parser/types';
 
 export interface MigrationStep {
   type: 'create' | 'alter' | 'drop';
-  objectType: 'table' | 'enum' | 'extension' | 'constraint' | 'index' | 'rls' | 'role' | 'policy';
+  objectType: 'table' | 'enum' | 'extension' | 'constraint' | 'index' | 'rls' | 'role' | 'policy' | 'trigger';
   name: string;
   sql: string;
   rollbackSql: string;
@@ -27,6 +27,7 @@ export interface MigrationOptions {
   includeRoles?: boolean;
   includePolicies?: boolean;
   includeRelations?: boolean;
+  includeTriggers?: boolean;
 }
 
 export interface MigrationGenerator {
