@@ -196,6 +196,10 @@ function parseCommandLineArgs(): {
       options.includeRoles = false;
     } else if (arg === '--no-policies') {
       options.includePolicies = false;
+    } else if (arg === '--no-triggers') {
+      options.includeTriggers = false;
+    } else if (arg === '--no-relations') {
+      options.includeRelations = false;
     } else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -231,6 +235,8 @@ Options:
   --no-rls                  Don't include row level security in migration
   --no-roles                Don't include roles in migration
   --no-policies             Don't include policies in migration
+  --no-triggers             Don't include triggers in migration
+  --no-relations            Don't include relations in migration
   --help, -h                Show this help
 
 Examples:
@@ -268,7 +274,9 @@ try {
       includeIndexes: options.includeIndexes,
       includeRLS: options.includeRLS,
       includeRoles: options.includeRoles,
-      includePolicies: options.includePolicies
+      includePolicies: options.includePolicies,
+      includeTriggers: options.includeTriggers,
+      includeRelations: options.includeRelations
     });
   } else {
     // Generate migration from single schema (traditional approach)
@@ -281,7 +289,9 @@ try {
       includeIndexes: options.includeIndexes,
       includeRLS: options.includeRLS,
       includeRoles: options.includeRoles,
-      includePolicies: options.includePolicies
+      includePolicies: options.includePolicies,
+      includeTriggers: options.includeTriggers,
+      includeRelations: options.includeRelations
     });
   }
 

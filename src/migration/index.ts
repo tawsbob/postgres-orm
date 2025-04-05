@@ -9,3 +9,6 @@ export { EnumOrchestrator } from './enum/enumOrchestrator';
 export { RLSOrchestrator } from './rls/rlsOrchestrator';
 export { PolicyOrchestrator } from './rls/policyOrchestrator';
 export { RoleOrchestrator } from './role/roleOrchestrator';
+export * from './trigger/triggerOrchestrator';
+export * from './index/indexOrchestrator';
+export * from './relation/relationOrchestrator';

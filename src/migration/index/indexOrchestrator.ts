@@ -193,7 +193,15 @@ export class IndexOrchestrator {
    * @returns String key representing the index
    */
   private getIndexKey(index: Index): string {
-    return index.name || index.fields.sort().join('_');
+    // If the index has a name, use it as the key
+    if (index.name) {
+      return index.name;
+    }
+    
+    // Otherwise, use the sorted fields as the key
+    // This ensures that indexes with the same fields in different orders are considered the same
+    const sortedFields = [...index.fields].sort();
+    return sortedFields.join('_');
   }
 
   /**
@@ -203,12 +211,14 @@ export class IndexOrchestrator {
    * @param index Index definition
    * @returns Generated index name
    */
-  private generateIndexName(tableName: string, index: Index): string {
+  public generateIndexName(tableName: string, index: Index): string {
+    // Use original field order for index naming to maintain consistent naming
     const fieldsPart = index.fields.join('_');
     const typePart = index.type ? `_${index.type.toLowerCase()}` : '';
     const uniquePart = index.unique ? '_unique' : '';
+    const wherePart = index.where ? '_filtered' : '';
     
-    return `idx_${tableName}_${fieldsPart}${typePart}${uniquePart}`;
+    return `idx_${tableName}_${fieldsPart}${typePart}${uniquePart}${wherePart}`;
   }
 
   /**
@@ -228,17 +238,24 @@ export class IndexOrchestrator {
     // Compare where clause
     if (fromIndex.where !== toIndex.where) return true;
     
+    // If we're comparing by name only, fields don't matter
+    if (fromIndex.name && toIndex.name && fromIndex.name === toIndex.name) {
+      return false;
+    }
+    
     // Compare fields
     if (fromIndex.fields.length !== toIndex.fields.length) return true;
     
-    // Compare fields in order
+    // Sort fields for comparison to ignore order differences
     const sortedFromFields = [...fromIndex.fields].sort();
     const sortedToFields = [...toIndex.fields].sort();
     
+    // Compare each field
     for (let i = 0; i < sortedFromFields.length; i++) {
       if (sortedFromFields[i] !== sortedToFields[i]) return true;
     }
     
+    // If we reach here, the indexes are the same
     return false;
   }
 } 

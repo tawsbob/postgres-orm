@@ -1,4 +1,4 @@
-import { Model, Enum, Field, Relation, Role, Policy } from '../parser/types';
+import { Model, Enum, Field, Relation, Role, Policy, Index } from '../parser/types';
 
 export class SQLGenerator {
   private static readonly DEFAULT_SCHEMA = 'public';
@@ -397,5 +397,64 @@ END $$;`);
     }
 
     return alterSql + ';';
+  }
+
+  /**
+   * Generate SQL to create an index based on the Index type
+   * 
+   * @param model Model the index belongs to
+   * @param index Index definition
+   * @param schemaName Schema name
+   * @returns SQL statement to create the index
+   */
+  static generateCreateIndexFromIndexTypeSQL(
+    model: Model,
+    index: Index,
+    schemaName: string = this.DEFAULT_SCHEMA
+  ): string {
+    const tableName = model.name;
+    // Use the custom name if provided, otherwise generate a unique name based on all properties
+    const indexName = index.name || this.generateUniqueIndexName(tableName, index);
+    const fields = index.fields.map(field => `"${field}"`).join(', ');
+    const uniqueClause = index.unique ? 'UNIQUE ' : '';
+    const typeClause = index.type ? `USING ${index.type}` : '';
+    const whereClause = index.where ? `WHERE ${index.where}` : '';
+
+    return `CREATE ${uniqueClause}INDEX "${indexName}" ON "${schemaName}"."${tableName}" ${typeClause} (${fields}) ${whereClause};`;
+  }
+
+  /**
+   * Generate SQL to drop an index
+   * 
+   * @param model Model the index belongs to
+   * @param index Index definition
+   * @param schemaName Schema name
+   * @returns SQL statement to drop the index
+   */
+  static generateDropIndexFromIndexTypeSQL(
+    model: Model,
+    index: Index,
+    schemaName: string = this.DEFAULT_SCHEMA
+  ): string {
+    const tableName = model.name;
+    const indexName = index.name || this.generateUniqueIndexName(tableName, index);
+    
+    return `DROP INDEX IF EXISTS "${schemaName}"."${indexName}";`;
+  }
+
+  /**
+   * Generate a unique name for an index that includes all its properties
+   * 
+   * @param tableName Table name
+   * @param index Index definition
+   * @returns Unique index name
+   */
+  private static generateUniqueIndexName(tableName: string, index: Index): string {
+    const fieldsPart = index.fields.join('_');
+    const typePart = index.type ? `_${index.type.toLowerCase()}` : '';
+    const uniquePart = index.unique ? '_unique' : '';
+    const wherePart = index.where ? '_filtered' : '';
+    
+    return `idx_${tableName}_${fieldsPart}${typePart}${uniquePart}${wherePart}`;
   }
 } 

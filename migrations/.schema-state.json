@@ -1,0 +1,505 @@
+{
+  "models": [
+    {
+      "name": "User",
+      "fields": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "attributes": [
+            "id",
+            "default"
+          ],
+          "defaultValue": "gen_random_uuid()"
+        },
+        {
+          "name": "email",
+          "type": "VARCHAR",
+          "attributes": [
+            "unique"
+          ],
+          "length": 255
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR",
+          "attributes": [],
+          "length": 150
+        },
+        {
+          "name": "role",
+          "type": "UserRole",
+          "attributes": [
+            "default"
+          ],
+          "defaultValue": "USER"
+        },
+        {
+          "name": "age",
+          "type": "SMALLINT",
+          "attributes": []
+        },
+        {
+          "name": "balance",
+          "type": "INTEGER",
+          "attributes": []
+        },
+        {
+          "name": "isActive",
+          "type": "BOOLEAN",
+          "attributes": [
+            "default"
+          ],
+          "defaultValue": "true"
+        },
+        {
+          "name": "createdAt",
+          "type": "TIMESTAMP",
+          "attributes": [
+            "default"
+          ],
+          "defaultValue": "now()"
+        },
+        {
+          "name": "updatedAt",
+          "type": "TIMESTAMP",
+          "attributes": [
+            "updatedAt"
+          ]
+        }
+      ],
+      "relations": [
+        {
+          "name": "profile",
+          "model": "Profile",
+          "type": "one-to-one"
+        },
+        {
+          "name": "orders",
+          "model": "Order",
+          "type": "one-to-many"
+        }
+      ],
+      "rowLevelSecurity": {
+        "enabled": true,
+        "force": true
+      },
+      "policies": [
+        {
+          "name": "userIsolation",
+          "for": [
+            "select",
+            "update"
+          ],
+          "to": "Profile",
+          "using": "(userId = (SELECT current_setting('app.current_user_id')::integer));"
+        },
+        {
+          "name": "adminAccess",
+          "for": "all",
+          "to": "adminRole",
+          "using": "true"
+        }
+      ],
+      "triggers": [
+        {
+          "event": "BEFORE UPDATE",
+          "level": "FOR EACH ROW",
+          "execute": "IF (OLD.balance <> NEW.balance) THEN RAISE EXCEPTION 'Balance cannot be updated directly'; END IF;"
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "role",
+            "isActive"
+          ]
+        },
+        {
+          "fields": [
+            "name"
+          ],
+          "name": "active_users_name_idx",
+          "type": "btree",
+          "where": "isActive = true"
+        },
+        {
+          "fields": [
+            "email"
+          ],
+          "unique": true,
+          "where": "role = 'PUBLIC'"
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "fields": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "attributes": [
+            "id",
+            "default"
+          ],
+          "defaultValue": "gen_random_uuid()"
+        },
+        {
+          "name": "userId",
+          "type": "UUID",
+          "attributes": [
+            "unique"
+          ]
+        },
+        {
+          "name": "bio",
+          "type": "TEXT",
+          "attributes": []
+        },
+        {
+          "name": "avatar",
+          "type": "VARCHAR",
+          "attributes": [],
+          "length": 255
+        },
+        {
+          "name": "location",
+          "type": "POINT",
+          "attributes": []
+        }
+      ],
+      "relations": [
+        {
+          "name": "UserProfile",
+          "model": "User",
+          "type": "one-to-one",
+          "fields": [
+            "userId"
+          ],
+          "references": [
+            "id"
+          ]
+        }
+      ],
+      "policies": [],
+      "triggers": [],
+      "indexes": []
+    },
+    {
+      "name": "Order",
+      "fields": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "attributes": [
+            "id",
+            "default"
+          ],
+          "defaultValue": "gen_random_uuid()"
+        },
+        {
+          "name": "userId",
+          "type": "UUID",
+          "attributes": []
+        },
+        {
+          "name": "status",
+          "type": "OrderStatus",
+          "attributes": [
+            "default"
+          ],
+          "defaultValue": "PENDING"
+        },
+        {
+          "name": "totalAmount",
+          "type": "DECIMAL",
+          "attributes": [],
+          "precision": 10,
+          "scale": 2
+        },
+        {
+          "name": "items",
+          "type": "JSONB",
+          "attributes": []
+        },
+        {
+          "name": "createdAt",
+          "type": "TIMESTAMP",
+          "attributes": [
+            "default"
+          ],
+          "defaultValue": "now()"
+        },
+        {
+          "name": "updatedAt",
+          "type": "TIMESTAMP",
+          "attributes": [
+            "updatedAt"
+          ]
+        }
+      ],
+      "relations": [
+        {
+          "name": "user",
+          "model": "User",
+          "type": "one-to-one",
+          "fields": [
+            "userId"
+          ],
+          "references": [
+            "id"
+          ]
+        },
+        {
+          "name": "products",
+          "model": "ProductOrder",
+          "type": "one-to-many"
+        }
+      ],
+      "policies": [],
+      "triggers": [],
+      "indexes": []
+    },
+    {
+      "name": "Product",
+      "fields": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "attributes": [
+            "id",
+            "default"
+          ],
+          "defaultValue": "gen_random_uuid()"
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR",
+          "attributes": [],
+          "length": 255
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "attributes": []
+        },
+        {
+          "name": "price",
+          "type": "DECIMAL",
+          "attributes": [],
+          "precision": 10,
+          "scale": 2
+        },
+        {
+          "name": "stock",
+          "type": "INTEGER",
+          "attributes": []
+        },
+        {
+          "name": "category",
+          "type": "VARCHAR",
+          "attributes": [],
+          "length": 100
+        },
+        {
+          "name": "tags",
+          "type": "TEXT[]",
+          "attributes": []
+        },
+        {
+          "name": "metadata",
+          "type": "JSONB",
+          "attributes": []
+        },
+        {
+          "name": "createdAt",
+          "type": "TIMESTAMP",
+          "attributes": [
+            "default"
+          ],
+          "defaultValue": "now()"
+        },
+        {
+          "name": "updatedAt",
+          "type": "TIMESTAMP",
+          "attributes": [
+            "updatedAt"
+          ]
+        }
+      ],
+      "relations": [
+        {
+          "name": "orders",
+          "model": "ProductOrder",
+          "type": "one-to-many"
+        }
+      ],
+      "policies": [],
+      "triggers": [
+        {
+          "event": "AFTER UPDATE",
+          "level": "FOR EACH ROW",
+          "execute": "IF (OLD.stock <> NEW.stock) THEN INSERT INTO product_inventory_log(product_id, old_stock, new_stock, changed_at) VALUES (NEW.id, OLD.stock, NEW.stock, NOW()); END IF;"
+        },
+        {
+          "event": "BEFORE UPDATE",
+          "level": "FOR EACH ROW",
+          "execute": "IF (OLD.price <> NEW.price) THEN INSERT INTO product_price_history(product_id, old_price, new_price, changed_at) VALUES (OLD.id, OLD.price, NEW.price, NOW());  -- Notify admin if price decreased by more than 25% IF (NEW.price < OLD.price * 0.75) THEN PERFORM pg_notify('price_alerts', 'Product ' || OLD.name || ' price decreased by more than 25%'); END IF; END IF;"
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "ProductOrder",
+      "fields": [
+        {
+          "name": "id",
+          "type": "SERIAL",
+          "attributes": [
+            "id"
+          ]
+        },
+        {
+          "name": "orderId",
+          "type": "UUID",
+          "attributes": []
+        },
+        {
+          "name": "productId",
+          "type": "UUID",
+          "attributes": []
+        },
+        {
+          "name": "quantity",
+          "type": "INTEGER",
+          "attributes": []
+        },
+        {
+          "name": "price",
+          "type": "DECIMAL",
+          "attributes": [],
+          "precision": 10,
+          "scale": 2
+        }
+      ],
+      "relations": [
+        {
+          "name": "order",
+          "model": "Order",
+          "type": "one-to-one",
+          "fields": [
+            "orderId"
+          ],
+          "references": [
+            "id"
+          ]
+        },
+        {
+          "name": "product",
+          "model": "Product",
+          "type": "one-to-one",
+          "fields": [
+            "productId"
+          ],
+          "references": [
+            "id"
+          ]
+        }
+      ],
+      "policies": [],
+      "triggers": [],
+      "indexes": []
+    },
+    {
+      "name": "Testing",
+      "fields": [
+        {
+          "name": "id",
+          "type": "SERIAL",
+          "attributes": [
+            "id"
+          ]
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR",
+          "attributes": [],
+          "length": 150
+        },
+        {
+          "name": "createdAt",
+          "type": "TIMESTAMP",
+          "attributes": [
+            "default"
+          ],
+          "defaultValue": "now()"
+        }
+      ],
+      "relations": [],
+      "policies": [],
+      "triggers": [],
+      "indexes": []
+    }
+  ],
+  "enums": [
+    {
+      "name": "UserRole",
+      "values": [
+        "ADMIN",
+        "USER",
+        "PUBLIC"
+      ]
+    },
+    {
+      "name": "OrderStatus",
+      "values": [
+        "PENDING",
+        "PROCESSING",
+        "SHIPPED",
+        "DELIVERED",
+        "CANCELLED"
+      ]
+    }
+  ],
+  "extensions": [
+    {
+      "name": "pgcrypto",
+      "version": "1.3"
+    },
+    {
+      "name": "postgis"
+    },
+    {
+      "name": "uuid-ossp"
+    }
+  ],
+  "roles": [
+    {
+      "name": "logdUser",
+      "privileges": [
+        {
+          "privileges": [
+            "select",
+            "insert",
+            "update"
+          ],
+          "on": "User"
+        }
+      ]
+    },
+    {
+      "name": "adminRole",
+      "privileges": [
+        {
+          "privileges": [
+            "select",
+            "insert",
+            "update",
+            "delete"
+          ],
+          "on": "User"
+        }
+      ]
+    }
+  ]
+}

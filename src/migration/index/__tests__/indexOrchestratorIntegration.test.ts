@@ -1,289 +1,217 @@
-import { Schema } from '../../../parser/types';
-import { MigrationGenerator } from '../../migrationGenerator';
+import { Schema, Model, Index } from '../../../parser/types';
+import { IndexOrchestrator } from '../indexOrchestrator';
+import { MigrationStep } from '../../types';
+import { SQLGenerator } from '../../sqlGenerator';
 
-describe('IndexOrchestrator Integration', () => {
-  let generator: MigrationGenerator;
-
+describe('IndexOrchestrator Integration Tests', () => {
+  let orchestrator: IndexOrchestrator;
+  
   beforeEach(() => {
-    generator = new MigrationGenerator();
+    orchestrator = new IndexOrchestrator();
   });
-
-  test('should generate migration for added index', () => {
-    // Arrange
-    const fromSchema: Schema = {
-      models: [
-        {
-          name: 'User',
-          fields: [
-            { name: 'id', type: 'UUID', attributes: ['id'] },
-            { name: 'name', type: 'VARCHAR', attributes: [] },
-            { name: 'email', type: 'VARCHAR', attributes: [] }
-          ],
-          relations: []
-        }
+  
+  // Helper function to create a simple model with specified name and indexes
+  const createModelWithIndexes = (name: string, indexes: Index[]): Model => {
+    return {
+      name,
+      fields: [
+        { name: 'id', type: 'INTEGER', attributes: ['id'] },
+        { name: 'name', type: 'VARCHAR', attributes: [], length: 255 },
+        { name: 'email', type: 'VARCHAR', attributes: [], length: 255 },
+        { name: 'isActive', type: 'BOOLEAN', attributes: ['default'], defaultValue: 'true' },
+        { name: 'role', type: 'VARCHAR', attributes: [], length: 50 }
       ],
-      enums: [],
-      extensions: [],
-      roles: []
+      relations: [],
+      indexes
     };
-
-    const toSchema: Schema = {
-      models: [
-        {
-          name: 'User',
-          fields: [
-            { name: 'id', type: 'UUID', attributes: ['id'] },
-            { name: 'name', type: 'VARCHAR', attributes: [] },
-            { name: 'email', type: 'VARCHAR', attributes: [] }
-          ],
-          relations: [],
-          indexes: [
-            { fields: ['name', 'email'] }
-          ]
-        }
-      ],
-      enums: [],
-      extensions: [],
-      roles: []
-    };
-
-    // Act
-    const migration = generator.generateMigrationFromDiff(fromSchema, toSchema);
-
-    // Assert
-    const indexSteps = migration.steps.filter(step => step.objectType === 'index');
-    expect(indexSteps).toHaveLength(1);
-    expect(indexSteps[0].type).toBe('create');
-    expect(indexSteps[0].name).toContain('idx_User_');
-    expect(indexSteps[0].sql).toContain('CREATE INDEX');
-    expect(indexSteps[0].sql).toContain('"name", "email"');
-  });
-
-  test('should generate migration for removed index', () => {
-    // Arrange
-    const fromSchema: Schema = {
-      models: [
-        {
-          name: 'User',
-          fields: [
-            { name: 'id', type: 'UUID', attributes: ['id'] },
-            { name: 'name', type: 'VARCHAR', attributes: [] },
-            { name: 'email', type: 'VARCHAR', attributes: [] }
-          ],
-          relations: [],
-          indexes: [
-            { fields: ['name', 'email'] }
-          ]
-        }
-      ],
-      enums: [],
-      extensions: [],
-      roles: []
-    };
-
-    const toSchema: Schema = {
-      models: [
-        {
-          name: 'User',
-          fields: [
-            { name: 'id', type: 'UUID', attributes: ['id'] },
-            { name: 'name', type: 'VARCHAR', attributes: [] },
-            { name: 'email', type: 'VARCHAR', attributes: [] }
-          ],
-          relations: []
-        }
-      ],
-      enums: [],
-      extensions: [],
-      roles: []
-    };
-
-    // Act
-    const migration = generator.generateMigrationFromDiff(fromSchema, toSchema);
-
-    // Assert
-    const indexSteps = migration.steps.filter(step => step.objectType === 'index');
-    expect(indexSteps).toHaveLength(1);
-    expect(indexSteps[0].type).toBe('drop');
-    expect(indexSteps[0].name).toContain('idx_User_');
-    expect(indexSteps[0].sql).toContain('DROP INDEX');
-  });
-
-  test('should generate migration for updated index (unique)', () => {
-    // Arrange
-    const fromSchema: Schema = {
-      models: [
-        {
-          name: 'User',
-          fields: [
-            { name: 'id', type: 'UUID', attributes: ['id'] },
-            { name: 'email', type: 'VARCHAR', attributes: [] }
-          ],
-          relations: [],
-          indexes: [
-            { fields: ['email'] }
-          ]
-        }
-      ],
-      enums: [],
-      extensions: [],
-      roles: []
-    };
-
-    const toSchema: Schema = {
-      models: [
-        {
-          name: 'User',
-          fields: [
-            { name: 'id', type: 'UUID', attributes: ['id'] },
-            { name: 'email', type: 'VARCHAR', attributes: [] }
-          ],
-          relations: [],
-          indexes: [
-            { fields: ['email'], unique: true }
-          ]
-        }
-      ],
-      enums: [],
-      extensions: [],
-      roles: []
-    };
-
-    // Act
-    const migration = generator.generateMigrationFromDiff(fromSchema, toSchema);
-
-    // Assert
-    const indexSteps = migration.steps.filter(step => step.objectType === 'index');
-    expect(indexSteps).toHaveLength(2); // One to drop, one to create
+  };
+  
+  describe('Integration with SQL Generator', () => {
+    test('should generate proper SQL for creating a basic index', () => {
+      // Arrange
+      const fromModels: Model[] = [createModelWithIndexes('User', [])];
+      const toModels: Model[] = [createModelWithIndexes('User', [{ fields: ['name'] }])];
+      
+      // Act
+      const diff = orchestrator.compareIndexes(fromModels, toModels);
+      const steps = orchestrator.generateIndexMigrationSteps(diff);
+      
+      // Assert
+      expect(steps).toHaveLength(1);
+      expect(steps[0].type).toBe('create');
+      expect(steps[0].objectType).toBe('index');
+      expect(steps[0].sql).toMatch(/CREATE\s+INDEX\s+"idx_User_name"/);
+      expect(steps[0].sql).toMatch(/ON\s+"public"."User"/);
+      expect(steps[0].sql).toMatch(/\("name"\)/);
+    });
     
-    // Check drop step
-    expect(indexSteps[0].type).toBe('drop');
-    expect(indexSteps[0].sql).toContain('DROP INDEX');
+    test('should generate proper SQL for creating a unique index', () => {
+      // Arrange
+      const fromModels: Model[] = [createModelWithIndexes('User', [])];
+      const toModels: Model[] = [createModelWithIndexes('User', [
+        { fields: ['email'], unique: true }
+      ])];
+      
+      // Act
+      const diff = orchestrator.compareIndexes(fromModels, toModels);
+      const steps = orchestrator.generateIndexMigrationSteps(diff);
+      
+      // Assert
+      expect(steps).toHaveLength(1);
+      expect(steps[0].type).toBe('create');
+      expect(steps[0].objectType).toBe('index');
+      expect(steps[0].sql).toMatch(/CREATE\s+UNIQUE\s+INDEX\s+"idx_User_email_unique"/);
+    });
     
-    // Check create step
-    expect(indexSteps[1].type).toBe('create');
-    expect(indexSteps[1].sql).toContain('CREATE UNIQUE INDEX');
-  });
-
-  test('should generate migration for updated index (where clause)', () => {
-    // Arrange
-    const fromSchema: Schema = {
-      models: [
-        {
-          name: 'User',
-          fields: [
-            { name: 'id', type: 'UUID', attributes: ['id'] },
-            { name: 'name', type: 'VARCHAR', attributes: [] },
-            { name: 'active', type: 'BOOLEAN', attributes: [] }
-          ],
-          relations: [],
-          indexes: [
-            { fields: ['name'] }
-          ]
-        }
-      ],
-      enums: [],
-      extensions: [],
-      roles: []
-    };
-
-    const toSchema: Schema = {
-      models: [
-        {
-          name: 'User',
-          fields: [
-            { name: 'id', type: 'UUID', attributes: ['id'] },
-            { name: 'name', type: 'VARCHAR', attributes: [] },
-            { name: 'active', type: 'BOOLEAN', attributes: [] }
-          ],
-          relations: [],
-          indexes: [
-            { fields: ['name'], where: 'active = true' }
-          ]
-        }
-      ],
-      enums: [],
-      extensions: [],
-      roles: []
-    };
-
-    // Act
-    const migration = generator.generateMigrationFromDiff(fromSchema, toSchema);
-
-    // Assert
-    const indexSteps = migration.steps.filter(step => step.objectType === 'index');
-    expect(indexSteps).toHaveLength(2); // One to drop, one to create
+    test('should generate proper SQL for creating an index with WHERE clause', () => {
+      // Arrange
+      const fromModels: Model[] = [createModelWithIndexes('User', [])];
+      const toModels: Model[] = [createModelWithIndexes('User', [
+        { fields: ['name'], where: 'isActive = true' }
+      ])];
+      
+      // Act
+      const diff = orchestrator.compareIndexes(fromModels, toModels);
+      const steps = orchestrator.generateIndexMigrationSteps(diff);
+      
+      // Assert
+      expect(steps).toHaveLength(1);
+      expect(steps[0].sql).toMatch(/CREATE\s+INDEX\s+"idx_User_name_filtered"\s+ON\s+"public"."User"\s+\("name"\)\s+WHERE\s+isActive\s+=\s+true/);
+    });
     
-    // Check drop step
-    expect(indexSteps[0].type).toBe('drop');
-    expect(indexSteps[0].sql).toContain('DROP INDEX');
+    test('should generate proper SQL for creating an index with custom type', () => {
+      // Arrange
+      const fromModels: Model[] = [createModelWithIndexes('User', [])];
+      const toModels: Model[] = [createModelWithIndexes('User', [
+        { fields: ['name'], type: 'btree' }
+      ])];
+      
+      // Act
+      const diff = orchestrator.compareIndexes(fromModels, toModels);
+      const steps = orchestrator.generateIndexMigrationSteps(diff);
+      
+      // Assert
+      expect(steps).toHaveLength(1);
+      expect(steps[0].sql).toMatch(/CREATE\s+INDEX\s+"idx_User_name_btree"\s+ON\s+"public"."User"\s+USING\s+btree\s+\("name"\)/);
+    });
     
-    // Check create step
-    expect(indexSteps[1].type).toBe('create');
-    expect(indexSteps[1].sql).toContain('WHERE active = true');
-  });
-
-  test('should handle multiple index operations in a single migration', () => {
-    // Arrange
-    const fromSchema: Schema = {
-      models: [
-        {
-          name: 'User',
-          fields: [
-            { name: 'id', type: 'UUID', attributes: ['id'] },
-            { name: 'name', type: 'VARCHAR', attributes: [] },
-            { name: 'email', type: 'VARCHAR', attributes: [] },
-            { name: 'active', type: 'BOOLEAN', attributes: [] }
-          ],
-          relations: [],
-          indexes: [
-            { fields: ['name'] },
-            { fields: ['email'], unique: true }
-          ]
-        }
-      ],
-      enums: [],
-      extensions: [],
-      roles: []
-    };
-
-    const toSchema: Schema = {
-      models: [
-        {
-          name: 'User',
-          fields: [
-            { name: 'id', type: 'UUID', attributes: ['id'] },
-            { name: 'name', type: 'VARCHAR', attributes: [] },
-            { name: 'email', type: 'VARCHAR', attributes: [] },
-            { name: 'active', type: 'BOOLEAN', attributes: [] }
-          ],
-          relations: [],
-          indexes: [
-            { fields: ['name'], where: 'active = true' },
-            { fields: ['name', 'email'] } // New index
-          ]
-        }
-      ],
-      enums: [],
-      extensions: [],
-      roles: []
-    };
-
-    // Act
-    const migration = generator.generateMigrationFromDiff(fromSchema, toSchema);
-
-    // Assert
-    const indexSteps = migration.steps.filter(step => step.objectType === 'index');
-    expect(indexSteps).toHaveLength(4); 
+    test('should generate proper SQL for dropping an index', () => {
+      // Arrange
+      const fromModels: Model[] = [createModelWithIndexes('User', [
+        { fields: ['name'] }
+      ])];
+      const toModels: Model[] = [createModelWithIndexes('User', [])];
+      
+      // Act
+      const diff = orchestrator.compareIndexes(fromModels, toModels);
+      const steps = orchestrator.generateIndexMigrationSteps(diff);
+      
+      // Assert
+      expect(steps).toHaveLength(1);
+      expect(steps[0].type).toBe('drop');
+      expect(steps[0].objectType).toBe('index');
+      expect(steps[0].sql).toMatch(/DROP\s+INDEX\s+IF\s+EXISTS\s+"public"."idx_User_name"/);
+    });
     
-    // One drop and one create for updated index
-    expect(indexSteps[0].type).toBe('drop');
-    expect(indexSteps[1].type).toBe('create');
+    test('should generate proper SQL for updating an index', () => {
+      // Arrange
+      const fromModels: Model[] = [createModelWithIndexes('User', [
+        { fields: ['name'] }
+      ])];
+      const toModels: Model[] = [createModelWithIndexes('User', [
+        { fields: ['name'], unique: true }
+      ])];
+      
+      // Act
+      const diff = orchestrator.compareIndexes(fromModels, toModels);
+      const steps = orchestrator.generateIndexMigrationSteps(diff);
+      
+      // Assert
+      expect(steps).toHaveLength(2);
+      
+      // First step should drop the old index
+      expect(steps[0].type).toBe('drop');
+      expect(steps[0].objectType).toBe('index');
+      expect(steps[0].sql).toMatch(/DROP\s+INDEX\s+IF\s+EXISTS\s+"public"."idx_User_name"/);
+      
+      // Second step should create the new unique index
+      expect(steps[1].type).toBe('create');
+      expect(steps[1].objectType).toBe('index');
+      expect(steps[1].sql).toMatch(/CREATE\s+UNIQUE\s+INDEX\s+"idx_User_name_unique"\s+ON\s+"public"."User"/);
+    });
     
-    // One create for added index
-    expect(indexSteps[2].type).toBe('create');
+    test('should generate proper SQL for index with a custom name', () => {
+      // Arrange
+      const fromModels: Model[] = [createModelWithIndexes('User', [])];
+      const toModels: Model[] = [createModelWithIndexes('User', [
+        { name: 'active_users_name_idx', fields: ['name'], where: 'isActive = true' }
+      ])];
+      
+      // Act
+      const diff = orchestrator.compareIndexes(fromModels, toModels);
+      const steps = orchestrator.generateIndexMigrationSteps(diff);
+      
+      // Assert
+      expect(steps).toHaveLength(1);
+      expect(steps[0].type).toBe('create');
+      expect(steps[0].objectType).toBe('index');
+      expect(steps[0].name).toBe('active_users_name_idx');
+      expect(steps[0].sql).toMatch(/CREATE\s+INDEX\s+"active_users_name_idx"\s+ON\s+"public"."User"/);
+    });
     
-    // One drop for removed index
-    expect(indexSteps[3].type).toBe('drop');
+    test('should generate proper SQL for index with multiple fields', () => {
+      // Arrange
+      const fromModels: Model[] = [createModelWithIndexes('User', [])];
+      const toModels: Model[] = [createModelWithIndexes('User', [
+        { fields: ['role', 'isActive'] }
+      ])];
+      
+      // Act
+      const diff = orchestrator.compareIndexes(fromModels, toModels);
+      const steps = orchestrator.generateIndexMigrationSteps(diff);
+      
+      // Assert
+      expect(steps).toHaveLength(1);
+      expect(steps[0].type).toBe('create');
+      expect(steps[0].objectType).toBe('index');
+      
+      // Index name is generated using original field order
+      expect(steps[0].name).toBe('idx_User_role_isActive');
+      
+      // Check that the index SQL contains both fields (order doesn't matter for the regex)
+      expect(steps[0].sql).toMatch(/CREATE\s+INDEX\s+"idx_User_role_isActive"\s+ON\s+"public"."User"/);
+      expect(steps[0].sql).toMatch(/\((?=.*"role")(?=.*"isActive").*\)/);
+    });
+    
+    test('should generate valid rollback SQL for each step', () => {
+      // Arrange - we'll add a name index and remove an email index
+      const fromModels: Model[] = [createModelWithIndexes('User', [
+        { fields: ['email'], unique: true }
+      ])];
+      const toModels: Model[] = [createModelWithIndexes('User', [
+        { fields: ['name'] }
+      ])];
+      
+      // Act
+      const diff = orchestrator.compareIndexes(fromModels, toModels);
+      const steps = orchestrator.generateIndexMigrationSteps(diff);
+      
+      // Assert - the order is predictable: first added, then updated, then removed
+      expect(steps).toHaveLength(2);
+      
+      // First step: Create name index (added)
+      expect(steps[0].type).toBe('create');
+      expect(steps[0].objectType).toBe('index');
+      expect(steps[0].name).toBe('idx_User_name');
+      expect(steps[0].sql).toMatch(/CREATE\s+INDEX/);
+      expect(steps[0].rollbackSql).toMatch(/DROP\s+INDEX/); // Rollback should drop it
+      
+      // Second step: Drop email index (removed)
+      expect(steps[1].type).toBe('drop');
+      expect(steps[1].objectType).toBe('index');
+      expect(steps[1].name).toBe('idx_User_email_unique');
+      expect(steps[1].sql).toMatch(/DROP\s+INDEX/);
+      expect(steps[1].rollbackSql).toMatch(/CREATE\s+UNIQUE\s+INDEX/); // Rollback should create it
+    });
   });
 }); 

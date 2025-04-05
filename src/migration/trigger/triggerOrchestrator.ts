@@ -19,9 +19,10 @@ export class TriggerOrchestrator {
 
     // Compare triggers for each model
     for (const [modelName, toModel] of toModels) {
-      console.log('Processing model:', modelName);
-      console.log('From model triggers:', fromModels.get(modelName)?.triggers);
-      console.log('To model triggers:', toModel.triggers);
+      // Debug logs removed for cleaner output
+      // console.log('Processing model:', modelName);
+      // console.log('From model triggers:', fromModels.get(modelName)?.triggers);
+      // console.log('To model triggers:', toModel.triggers);
       
       const fromModel = fromModels.get(modelName);
       
@@ -60,8 +61,9 @@ export class TriggerOrchestrator {
       toModel.triggers?.map(t => [this.getTriggerKey(t), t]) || []
     );
 
-    console.log('From triggers:', Array.from(fromTriggers.keys()));
-    console.log('To triggers:', Array.from(toTriggers.keys()));
+    // Debug logs removed for cleaner output
+    // console.log('From triggers:', Array.from(fromTriggers.keys()));
+    // console.log('To triggers:', Array.from(toTriggers.keys()));
 
     // First, handle removed triggers
     for (const [key, fromTrigger] of fromTriggers) {

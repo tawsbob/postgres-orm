@@ -26,7 +26,9 @@ export const DEFAULT_PREVIEW_OPTIONS: MigrationPreviewOptions = {
   includeIndexes: true,
   includeRLS: true,
   includeRoles: true,
-  includePolicies: true
+  includePolicies: true,
+  includeTriggers: true,
+  includeRelations: true
 };
 
 /**

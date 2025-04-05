@@ -46,7 +46,6 @@ model User {
     using: "true"
   })
 
-  //TODO: IMPLEMENT THE PARSER AND THE ORCHESTRATOR FOR THE TRIGGER
   @@trigger("BEFORE UPDATE", {
     level: "FOR EACH ROW",
     execute: """

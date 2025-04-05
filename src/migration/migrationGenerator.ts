@@ -9,6 +9,7 @@ import { PolicyOrchestrator } from './rls/policyOrchestrator';
 import { RoleOrchestrator } from './role/roleOrchestrator';
 import { RelationOrchestrator } from './relation/relationOrchestrator';
 import { TriggerOrchestrator } from './trigger/triggerOrchestrator';
+import { IndexOrchestrator } from './index/indexOrchestrator';
 
 export class MigrationGenerator {
   private static readonly DEFAULT_SCHEMA = 'public';
@@ -20,6 +21,7 @@ export class MigrationGenerator {
   private roleOrchestrator: RoleOrchestrator;
   private relationOrchestrator: RelationOrchestrator;
   private triggerOrchestrator: TriggerOrchestrator;
+  private indexOrchestrator: IndexOrchestrator;
 
   constructor() {
     this.extensionOrchestrator = new ExtensionOrchestrator();
@@ -30,6 +32,7 @@ export class MigrationGenerator {
     this.roleOrchestrator = new RoleOrchestrator();
     this.relationOrchestrator = new RelationOrchestrator();
     this.triggerOrchestrator = new TriggerOrchestrator();
+    this.indexOrchestrator = new IndexOrchestrator();
   }
 
   private getTableDependencies(model: Schema['models'][0]): string[] {
@@ -156,6 +159,17 @@ export class MigrationGenerator {
       steps.push(...relationSteps);
     }
     
+    // Handle Indexes using the index orchestrator
+    if (includeIndexes) {
+      const indexDiff = this.indexOrchestrator.compareIndexes(
+        fromSchema.models,
+        toSchema.models
+      );
+      
+      const indexSteps = this.indexOrchestrator.generateIndexMigrationSteps(indexDiff, schemaName);
+      steps.push(...indexSteps);
+    }
+    
     // Handle RLS using the RLS orchestrator
     if (includeRLS) {
       const rlsDiff = this.rlsOrchestrator.compareRLS(
@@ -229,7 +243,8 @@ export class MigrationGenerator {
       includeRLS = true,
       includeRoles = true,
       includePolicies = true,
-      includeRelations = true
+      includeRelations = true,
+      includeTriggers = true
     } = options;
 
     const steps: MigrationStep[] = [];
@@ -305,6 +320,7 @@ export class MigrationGenerator {
 
         // Create indexes
         if (includeIndexes) {
+          // Add field-based unique indexes
           model.fields.forEach(field => {
             if (field.attributes.includes('unique') && !field.attributes.includes('id')) {
               const indexSql = SQLGenerator.generateCreateIndexSQL(model, field, schemaName);
@@ -319,6 +335,23 @@ export class MigrationGenerator {
               });
             }
           });
+          
+          // Add explicit indexes defined in the model
+          if (model.indexes && model.indexes.length > 0) {
+            model.indexes.forEach(index => {
+              const indexName = index.name || `idx_${model.name}_${index.fields.join('_')}`;
+              const indexSql = SQLGenerator.generateCreateIndexFromIndexTypeSQL(model, index, schemaName);
+              const dropIndexSql = SQLGenerator.generateDropIndexFromIndexTypeSQL(model, index, schemaName);
+              
+              steps.push({
+                type: 'create',
+                objectType: 'index',
+                name: indexName,
+                sql: indexSql,
+                rollbackSql: dropIndexSql
+              });
+            });
+          }
         }
 
         // Configure RLS
@@ -363,6 +396,25 @@ export class MigrationGenerator {
       // Use the role orchestrator to generate steps
       const roleSteps = this.roleOrchestrator.generateRoleMigrationSteps(roleDiff, schemaName);
       steps.push(...roleSteps);
+    }
+
+    // Handle triggers using the trigger orchestrator
+    if (includeTriggers) {
+      // Create an empty schema to compare with
+      const emptySchema: Schema = {
+        models: [],
+        enums: [],
+        extensions: [],
+        roles: []
+      };
+      
+      // Use the trigger orchestrator to generate steps
+      const triggerSteps = this.triggerOrchestrator.generateTriggerSteps(
+        emptySchema,
+        schema,
+        { schemaName }
+      );
+      steps.push(...triggerSteps);
     }
 
     return {
