@@ -26,6 +26,9 @@ export class EnumOrchestrator {
    * @returns Object containing added, removed, and updated enums
    */
   compareEnums(fromEnums: Enum[], toEnums: Enum[]): EnumDiff {
+    // Register enum types with SQLGenerator
+    SQLGenerator.registerEnumTypes([...fromEnums, ...toEnums]);
+    
     // Create maps for faster lookups
     const fromEnumsMap = new Map<string, Enum>();
     fromEnums.forEach(enumDef => fromEnumsMap.set(enumDef.name, enumDef));
@@ -83,6 +86,14 @@ export class EnumOrchestrator {
    * @returns Array of migration steps for enums
    */
   generateEnumMigrationSteps(diff: EnumDiff, schemaName: string = 'public'): MigrationStep[] {
+    // Register all enum types involved in this migration
+    const allEnums: Enum[] = [
+      ...diff.added,
+      ...diff.removed,
+      ...diff.updated.map(update => update.enum)
+    ];
+    SQLGenerator.registerEnumTypes(allEnums);
+    
     const steps: MigrationStep[] = [];
     
     // Generate steps for added enums

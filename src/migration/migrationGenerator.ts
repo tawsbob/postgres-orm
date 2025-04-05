@@ -74,6 +74,14 @@ export class MigrationGenerator {
   }
 
   /**
+   * Register enum types from the schema with SQLGenerator
+   * @param schema Schema containing enum definitions
+   */
+  private registerEnumTypes(schema: Schema): void {
+    SQLGenerator.registerEnumTypes(schema.enums);
+  }
+
+  /**
    * Generate migration by comparing two schemas (from source to target)
    * This is used when we need to detect changes between schemas
    * 
@@ -83,6 +91,10 @@ export class MigrationGenerator {
    * @returns Migration with steps to transform source schema to target schema
    */
   generateMigrationFromDiff(fromSchema: Schema, toSchema: Schema, options: MigrationOptions = {}): Migration {
+    // Register enum types from both schemas to ensure all enums are recognized
+    this.registerEnumTypes(fromSchema);
+    this.registerEnumTypes(toSchema);
+
     const {
       schemaName = MigrationGenerator.DEFAULT_SCHEMA,
       includeExtensions = true,
@@ -204,6 +216,9 @@ export class MigrationGenerator {
    * @returns Migration for creating all objects in the schema
    */
   generateMigration(schema: Schema, options: MigrationOptions = {}): Migration {
+    // Register enum types from the schema
+    this.registerEnumTypes(schema);
+
     const {
       schemaName = MigrationGenerator.DEFAULT_SCHEMA,
       includeExtensions = true,
@@ -359,6 +374,9 @@ export class MigrationGenerator {
   }
 
   generateRollbackMigration(schema: Schema, options: MigrationOptions = {}): Migration {
+    // Register enum types from the schema
+    this.registerEnumTypes(schema);
+
     const migration = this.generateMigration(schema, options);
     
     // Reverse the steps order and swap SQL with rollbackSql
@@ -402,6 +420,10 @@ export class MigrationGenerator {
    * @returns Array of migration steps and affected objects
    */
   generateMigrationSteps(fromSchema: Schema, toSchema: Schema, migrationName: string): GenerateMigrationResult {
+    // Register enum types from both schemas
+    this.registerEnumTypes(fromSchema);
+    this.registerEnumTypes(toSchema);
+
     console.log(`Generating migration steps for "${migrationName}"`);
     
     // Calculate diffs for each object type

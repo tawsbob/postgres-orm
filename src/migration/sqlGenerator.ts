@@ -2,6 +2,27 @@ import { Model, Enum, Field, Relation, Role, Policy } from '../parser/types';
 
 export class SQLGenerator {
   private static readonly DEFAULT_SCHEMA = 'public';
+  private static enumTypes: Set<string> = new Set<string>();
+
+  /**
+   * Register enum types to be recognized by the SQL generator
+   * @param enums List of enums to register
+   */
+  static registerEnumTypes(enums: Enum[]): void {
+    this.enumTypes.clear();
+    for (const enumDef of enums) {
+      this.enumTypes.add(enumDef.name);
+    }
+  }
+
+  /**
+   * Check if a type is a registered enum type
+   * @param typeName The type name to check
+   * @returns True if the type is an enum, false otherwise
+   */
+  static isEnumType(typeName: string): boolean {
+    return this.enumTypes.has(typeName);
+  }
 
   static generateCreateEnumSQL(enumType: Enum, schemaName: string = this.DEFAULT_SCHEMA): string {
     const values = enumType.values.map(value => `'${value}'`).join(', ');
@@ -34,7 +55,7 @@ END $$;`;
     if (field.type.endsWith('[]')) {
       const baseType = field.type.slice(0, -2);
       // Check if the base type is an enum
-      if (baseType === 'UserRole' || baseType === 'OrderStatus') {
+      if (this.isEnumType(baseType)) {
         sql += `"${schemaName}"."${baseType}"[]`;
       } else {
         sql += `${baseType}[]`;
@@ -61,7 +82,7 @@ END $$;`;
         }
       } else {
         // Check if the type is an enum
-        if (field.type === 'UserRole' || field.type === 'OrderStatus') {
+        if (this.isEnumType(field.type)) {
           sql += `"${schemaName}"."${field.type}"`;
         } else {
           sql += field.type;
@@ -78,7 +99,7 @@ END $$;`;
     }
     if (field.attributes.includes('default')) {
       // Cast default value to enum type if the field is an enum
-      if (field.type === 'UserRole' || field.type === 'OrderStatus') {
+      if (this.isEnumType(field.type)) {
         sql += ` DEFAULT '${field.defaultValue}'::"${schemaName}"."${field.type}"`;
       } else {
         sql += ` DEFAULT ${field.defaultValue}`;
@@ -306,7 +327,7 @@ END $$;`);
       if (newField.type.endsWith('[]')) {
         const baseType = newField.type.slice(0, -2);
         // Check if the base type is an enum
-        if (baseType === 'UserRole' || baseType === 'OrderStatus') {
+        if (this.isEnumType(baseType)) {
           typeDefinition = `"${schemaName}"."${baseType}"[]`;
         } else {
           typeDefinition = `${baseType}[]`;
@@ -323,7 +344,7 @@ END $$;`);
           }
         } else {
           // Check if the type is an enum
-          if (newField.type === 'UserRole' || newField.type === 'OrderStatus') {
+          if (this.isEnumType(newField.type)) {
             typeDefinition = `"${schemaName}"."${newField.type}"`;
           } else {
             typeDefinition = newField.type;
@@ -341,7 +362,7 @@ END $$;`);
     if (oldDefault !== newDefault) {
       if (newDefault) {
         // Cast default value to enum type if the field is an enum
-        if (newField.type === 'UserRole' || newField.type === 'OrderStatus') {
+        if (this.isEnumType(newField.type)) {
           alterSql += `,\n  ALTER COLUMN "${newField.name}" SET DEFAULT '${newField.defaultValue}'::"${schemaName}"."${newField.type}"`;
         } else {
           alterSql += `,\n  ALTER COLUMN "${newField.name}" SET DEFAULT ${newField.defaultValue}`;

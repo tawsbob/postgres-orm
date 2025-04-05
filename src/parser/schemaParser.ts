@@ -1,4 +1,5 @@
 import { Schema, Model, Enum, Field, Relation, Extension, RowLevelSecurity, Role, Privilege, Policy, FieldType, FieldAttribute, Trigger, TriggerEvent, TriggerLevel, Index } from './types';
+import { SQLGenerator } from '../migration/sqlGenerator';
 import fs from 'fs';
 import path from 'path';
 
@@ -643,10 +644,10 @@ export default class SchemaParserV1 {
   }
 
   /**
-   * Parse a PostgreSQL schema definition
+   * Parse the schema from file or content string
    * @param schemaPath Path to the schema file
-   * @param fileContent Optional direct content to parse instead of reading from file
-   * @returns Schema object with parsed components
+   * @param fileContent Schema content as string
+   * @returns Parsed schema
    */
   public parseSchema(schemaPath?: string, fileContent?: string): Schema {
     try {
@@ -714,6 +715,11 @@ export default class SchemaParserV1 {
         }
       }
 
+      // Register the enum types with SQLGenerator
+      if (this.schema.enums && this.schema.enums.length > 0) {
+        SQLGenerator.registerEnumTypes(this.schema.enums);
+      }
+      
       return this.schema;
     } catch (error) {
       throw new Error(`Failed to parse schema: ${(error as Error).message}`);

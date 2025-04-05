@@ -13,8 +13,7 @@ export type FieldType =
   | 'JSONB'
   | 'TEXT[]'
   | 'POINT'
-  | 'UserRole'
-  | 'OrderStatus';
+  | string;
 
 export type FieldAttribute = 
   | 'id'
