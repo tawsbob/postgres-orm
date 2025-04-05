@@ -89,6 +89,9 @@ model Order {
   updatedAt     TIMESTAMP       @updatedAt
   user          User            @relation(fields: [userId], references: [id])
   products      ProductOrder[]
+  
+  @@index([userId])
+  @@index([status, createdAt], { name: "order_status_created_idx" })
 }
 
 model Product {
@@ -139,12 +142,6 @@ model ProductOrder {
   order         Order           @relation(fields: [orderId], references: [id])
   product       Product         @relation(fields: [productId], references: [id])
 } 
-
-model Testing {
-  id            SERIAL          @id
-  name          VARCHAR(150)
-  createdAt     TIMESTAMP       @default(now())
-}
 
 role logdUser {
   privileges: ["select", "insert", "update"] on User
