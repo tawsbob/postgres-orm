@@ -135,11 +135,12 @@ export class PolicyOrchestrator {
        (fromPolicy.for.length !== toPolicy.for.length || 
         !fromPolicy.for.every(action => toPolicy.for.includes(action))));
     
-    // Check if 'to' or 'using' have changed
+    // Check if 'to' or 'using' or 'check' have changed
     const toChanged = fromPolicy.to !== toPolicy.to;
     const usingChanged = fromPolicy.using !== toPolicy.using;
+    const checkChanged = fromPolicy.check !== toPolicy.check;
     
-    return forChanged || toChanged || usingChanged;
+    return forChanged || toChanged || usingChanged || checkChanged;
   }
 
   /**

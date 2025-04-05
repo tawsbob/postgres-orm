@@ -197,7 +197,8 @@ Policies define the conditions under which users can access rows:
 @@policy("policyName", {
   for: ["select", "update", "delete", "insert"],
   to: "roleName",
-  using: "condition_expression"
+  using: "condition_expression",
+  check: "check_condition_expression"
 })
 ```
 
@@ -206,6 +207,7 @@ Parameters:
 - `for`: The operations this policy applies to (select, update, delete, insert)
 - `to`: The role this policy applies to
 - `using`: The condition that must be true for the operation to be allowed
+- `check`: (Optional) The condition that must be true for INSERT/UPDATE operations, to allow validating new data
 
 Example:
 ```prisma
@@ -219,6 +221,13 @@ Example:
   for: "all",
   to: "admin",
   using: "true"
+})
+
+@@policy("users_update_own_data", {
+  for: ["update"],
+  to: "authenticated",
+  using: "(user_id = auth.uid())",
+  check: "(role = current_role AND email = OLD.email)"
 })
 ```
 

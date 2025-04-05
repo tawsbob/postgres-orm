@@ -302,17 +302,27 @@ export default class SchemaParserV1 {
       // Parse 'to' and 'using' fields
       const toMatch = policyText.match(/to:\s*"([^"]+)"/);
       const usingMatch = policyText.match(/using:\s*"([^"]+)"/);
+      
+      // Parse optional 'check' field
+      const checkMatch = policyText.match(/check:\s*"([^"]+)"/);
 
       if (!toMatch || !usingMatch) {
         throw new Error(`Missing required policy fields in: ${policyText}`);
       }
 
-      return {
+      const policy: Policy = {
         name,
         for: forValue,
         to: toMatch[1],
-        using: usingMatch[1]
+        using: usingMatch[1],
       };
+      
+      // Add check clause if it exists
+      if (checkMatch) {
+        policy.check = checkMatch[1];
+      }
+
+      return policy;
     } catch (error) {
       throw new Error(`Failed to parse policy: ${policyText}. ${(error as Error).message}`);
     }

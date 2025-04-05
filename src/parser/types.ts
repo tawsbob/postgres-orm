@@ -57,6 +57,7 @@ export interface Policy {
   for: string[] | 'all';
   to: string;
   using: string;
+  check?: string;
 }
 
 export type TriggerEvent = 'BEFORE INSERT' | 'AFTER INSERT' | 'BEFORE UPDATE' | 'AFTER UPDATE' | 'BEFORE DELETE' | 'AFTER DELETE';

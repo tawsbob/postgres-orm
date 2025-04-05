@@ -89,6 +89,41 @@ const steps = orchestrator.generatePolicyMigrationSteps(diff);
 // Result: Steps to create the new policy
 ```
 
+### Adding a Policy with Check Clause
+
+When adding a policy with a check clause for data validation:
+
+```typescript
+// Source model (no policies)
+const userModel = {
+  name: 'users',
+  fields: [...],
+  relations: [],
+  rowLevelSecurity: {
+    enabled: true,
+    force: true
+  }
+};
+
+// Target model (with policy including check clause)
+const userModelWithCheckPolicy = {
+  ...userModel,
+  policies: [{
+    name: 'users_update_policy',
+    for: ['update'],
+    to: 'authenticated',
+    using: '(user_id = auth.uid())',
+    check: '(role = current_role AND email = OLD.email)'
+  }]
+};
+
+// Generate migration
+const diff = orchestrator.comparePolicies([userModel], [userModelWithCheckPolicy]);
+const steps = orchestrator.generatePolicyMigrationSteps(diff);
+
+// Result: Steps to create the new policy with a CHECK clause
+```
+
 ### Updating an Existing Policy
 
 When a policy definition changes:
@@ -113,7 +148,8 @@ const modelWithUpdatedPolicy = {
     name: 'posts_policy',
     for: ['select', 'update'], // Added update permission
     to: 'authenticated',
-    using: '(author_id = auth.uid())'
+    using: '(author_id = auth.uid())',
+    check: '(is_draft = false)' // Added check clause for updates
   }]
 };
 
@@ -121,7 +157,7 @@ const modelWithUpdatedPolicy = {
 const diff = orchestrator.comparePolicies([modelWithPolicy], [modelWithUpdatedPolicy]);
 const steps = orchestrator.generatePolicyMigrationSteps(diff);
 
-// Result: Steps to drop the old policy and create the new policy
+// Result: Steps to drop the old policy and create the new policy with check clause
 ```
 
 ## Testing

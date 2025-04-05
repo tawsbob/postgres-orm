@@ -267,10 +267,16 @@ END $$;`);
       ? policy.for.map(action => action.toUpperCase()).join(', ')
       : 'ALL';
     
-    return `CREATE POLICY "${policy.name}" ON "${schemaName}"."${model.name}"
+    let sql = `CREATE POLICY "${policy.name}" ON "${schemaName}"."${model.name}"
     FOR ${forActions}
     TO ${policy.to}
-    USING (${policy.using});`;
+    USING (${policy.using})`;
+    
+    if (policy.check) {
+      sql += `\n    WITH CHECK (${policy.check})`;
+    }
+    
+    return sql + ';';
   }
 
   static generateDropPolicySQL(

@@ -169,4 +169,41 @@ describe('PolicyOrchestrator Integration Tests', () => {
     expect(addStep!.sql).toContain('TO authenticated');
     expect(addStep!.sql).toContain('(author_id = auth.uid())');
   });
+
+  it('should correctly handle policies with CHECK clauses', () => {
+    // Arrange
+    const policyWithCheck: Policy = {
+      name: 'users_update_own_data',
+      for: ['update'],
+      to: 'authenticated',
+      using: '(user_id = auth.uid())',
+      check: '(role = current_role AND email = OLD.email)' // Prevent users from changing their role or email
+    };
+
+    // Set up models
+    const fromModels: Model[] = [];
+    const toModels: Model[] = [
+      createTestModel('users', [policyWithCheck])
+    ];
+
+    // Act
+    const diff = orchestrator.comparePolicies(fromModels, toModels);
+    const steps = orchestrator.generatePolicyMigrationSteps(diff);
+
+    // Assert
+    expect(diff.added.length).toBe(1);
+    expect(diff.added[0].policy.name).toBe('users_update_own_data');
+    
+    // Verify the migration step is correct
+    expect(steps.length).toBe(1);
+    const addStep = steps[0];
+    expect(addStep.type).toBe('create');
+    expect(addStep.objectType).toBe('policy');
+    expect(addStep.name).toBe('policy_users_users_update_own_data');
+    expect(addStep.sql).toContain('CREATE POLICY "users_update_own_data" ON "public"."users"');
+    expect(addStep.sql).toContain('FOR UPDATE');
+    expect(addStep.sql).toContain('TO authenticated');
+    expect(addStep.sql).toContain('USING ((user_id = auth.uid()))');
+    expect(addStep.sql).toContain('WITH CHECK ((role = current_role AND email = OLD.email))');
+  });
 }); 

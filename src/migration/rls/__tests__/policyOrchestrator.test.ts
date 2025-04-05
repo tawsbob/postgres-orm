@@ -16,11 +16,12 @@ describe('PolicyOrchestrator', () => {
   });
 
   // Helper function to create a test policy
-  const createTestPolicy = (name: string, to: string = 'public'): Policy => ({
+  const createTestPolicy = (name: string, to: string = 'public', check?: string): Policy => ({
     name,
     for: ['select', 'insert', 'update', 'delete'],
     to,
-    using: '(user_id = current_user_id())'
+    using: '(user_id = current_user_id())',
+    ...(check && { check })
   });
 
   describe('comparePolicies', () => {
@@ -237,6 +238,70 @@ describe('PolicyOrchestrator', () => {
       expect(result.removed.length).toBe(0);
       expect(result.updated.length).toBe(0);
     });
+
+    it('should detect updated policies with changed "check" condition', () => {
+      // Arrange
+      const fromPolicy = createTestPolicy('user_policy', 'authenticated', '(role = \'USER\')');
+      const toPolicy = createTestPolicy('user_policy', 'authenticated', '(role = \'USER\' AND email = OLD.email)'); // Changed check condition
+      
+      const fromModels: Model[] = [
+        {
+          ...createTestModel('User'),
+          policies: [fromPolicy]
+        }
+      ];
+      
+      const toModels: Model[] = [
+        {
+          ...createTestModel('User'),
+          policies: [toPolicy]
+        }
+      ];
+
+      // Act
+      const result = orchestrator.comparePolicies(fromModels, toModels);
+
+      // Assert
+      expect(result.added.length).toBe(0);
+      expect(result.removed.length).toBe(0);
+      expect(result.updated.length).toBe(1);
+      expect(result.updated[0].model.name).toBe('User');
+      expect(result.updated[0].policy.name).toBe('user_policy');
+      expect(result.updated[0].policy.check).toBe('(role = \'USER\' AND email = OLD.email)');
+      expect(result.updated[0].previousPolicy.check).toBe('(role = \'USER\')');
+    });
+
+    it('should detect updated policies when adding a "check" condition', () => {
+      // Arrange
+      const fromPolicy = createTestPolicy('user_policy', 'authenticated'); // No check clause
+      const toPolicy = createTestPolicy('user_policy', 'authenticated', '(role = current_role)'); // Added check condition
+      
+      const fromModels: Model[] = [
+        {
+          ...createTestModel('User'),
+          policies: [fromPolicy]
+        }
+      ];
+      
+      const toModels: Model[] = [
+        {
+          ...createTestModel('User'),
+          policies: [toPolicy]
+        }
+      ];
+
+      // Act
+      const result = orchestrator.comparePolicies(fromModels, toModels);
+
+      // Assert
+      expect(result.added.length).toBe(0);
+      expect(result.removed.length).toBe(0);
+      expect(result.updated.length).toBe(1);
+      expect(result.updated[0].model.name).toBe('User');
+      expect(result.updated[0].policy.name).toBe('user_policy');
+      expect(result.updated[0].policy.check).toBe('(role = current_role)');
+      expect(result.updated[0].previousPolicy.check).toBeUndefined();
+    });
   });
 
   describe('generatePolicyMigrationSteps', () => {
@@ -331,6 +396,32 @@ describe('PolicyOrchestrator', () => {
       expect(steps[1].sql).toContain('CREATE POLICY');
       expect(steps[1].sql).toContain('TO authenticated');
       expect(steps[1].rollbackSql).toContain('DROP POLICY');
+    });
+
+    it('should generate policy with CHECK clause when specified', () => {
+      // Arrange
+      const model: Model = {
+        ...createTestModel('User'),
+        policies: [createTestPolicy('user_policy', 'authenticated', '(role = \'USER\')')] // With check clause
+      };
+      
+      const diff = {
+        added: [{ model, policy: model.policies![0] }],
+        removed: [],
+        updated: []
+      };
+
+      // Act
+      const steps = orchestrator.generatePolicyMigrationSteps(diff);
+
+      // Assert
+      expect(steps.length).toBe(1);
+      expect(steps[0].type).toBe('create');
+      expect(steps[0].objectType).toBe('policy');
+      expect(steps[0].name).toBe('policy_User_user_policy');
+      expect(steps[0].sql).toContain('CREATE POLICY');
+      expect(steps[0].sql).toContain('WITH CHECK ((role = \'USER\'))');
+      expect(steps[0].rollbackSql).toContain('DROP POLICY');
     });
   });
 }); 

@@ -478,4 +478,46 @@ describe('SchemaParserV1', () => {
       expect(index?.where).toBe("status = 'DELIVERED' AND total > 100.0");
     });
   });
+
+  describe('Policy Parsing', () => {
+    it('should correctly parse policies with check clauses', () => {
+      // Create a minimal schema with a model that has a policy with a check clause
+      const schemaContent = `
+        model User {
+          id            UUID            @id @default(gen_random_uuid())
+          email         VARCHAR(255)    @unique
+          name          VARCHAR(150)
+          role          VARCHAR(50)
+          
+          @@rowLevelSecurity(enabled: true, force: true)
+          
+          @@policy("users_update_own_data", {
+            for: ["update"],
+            to: "authenticated",
+            using: "(user_id = auth.uid())",
+            check: "(role = current_role AND email = OLD.email)"
+          })
+        }
+      `;
+      
+      // Parse the schema content
+      const parsedSchema = parser.parseSchema(undefined, schemaContent);
+      
+      // Get the User model
+      const userModel = parsedSchema.models.find(m => m.name === 'User');
+      expect(userModel).toBeDefined();
+      
+      // Check that the policy was parsed correctly
+      expect(userModel?.policies).toHaveLength(1);
+      
+      const updatePolicy = userModel?.policies?.[0];
+      expect(updatePolicy).toMatchObject({
+        name: 'users_update_own_data',
+        for: ['update'],
+        to: 'authenticated',
+        using: '(user_id = auth.uid())',
+        check: '(role = current_role AND email = OLD.email)'
+      });
+    });
+  });
 });
