@@ -189,7 +189,9 @@ describe('TriggerOrchestrator', () => {
 
       const steps = orchestrator.generateTriggerSteps(fromSchema, toSchema, { schemaName: 'custom' });
       expect(steps[0].sql).toContain('ON "custom"."users"');
+      expect(steps[0].sql).toContain('CREATE OR REPLACE FUNCTION "custom"."users_before_insert_for_each_row_trigger_fn"()');
       expect(steps[0].rollbackSql).toContain('ON "custom"."users"');
+      expect(steps[0].rollbackSql).toContain('DROP FUNCTION IF EXISTS "custom"."users_before_insert_for_each_row_trigger_fn"()');
     });
   });
 }); 

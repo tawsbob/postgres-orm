@@ -1,6 +1,6 @@
--- Migration: testing_order_table
--- Version: 20250405224531
--- Timestamp: 2025-04-05T22:45:31.244Z
+-- Migration: inital
+-- Version: 20250405225317
+-- Timestamp: 2025-04-05T22:53:17.058Z
 
 -- Up Migration
 BEGIN;
@@ -195,25 +195,55 @@ END $$;
 GRANT SELECT, INSERT, UPDATE, DELETE ON "public"."User" TO "adminRole";
 
 -- trigger: User_before_update_for_each_row_trigger
-CREATE TRIGGER User_before_update_for_each_row_trigger
+-- Create or replace the trigger function
+      CREATE OR REPLACE FUNCTION "public"."User_before_update_for_each_row_trigger_fn"()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        IF (OLD.balance <> NEW.balance) THEN RAISE EXCEPTION 'Balance cannot be updated directly'; END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      -- Create the trigger
+      CREATE TRIGGER User_before_update_for_each_row_trigger
       BEFORE UPDATE
       FOR EACH ROW
       ON "public"."User"
-      EXECUTE FUNCTION IF (OLD.balance <> NEW.balance) THEN RAISE EXCEPTION 'Balance cannot be updated directly'; END IF;;
+      EXECUTE FUNCTION "public"."User_before_update_for_each_row_trigger_fn"();
 
 -- trigger: Product_after_update_for_each_row_trigger
-CREATE TRIGGER Product_after_update_for_each_row_trigger
+-- Create or replace the trigger function
+      CREATE OR REPLACE FUNCTION "public"."Product_after_update_for_each_row_trigger_fn"()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        IF (OLD.stock <> NEW.stock) THEN INSERT INTO product_inventory_log(product_id, old_stock, new_stock, changed_at) VALUES (NEW.id, OLD.stock, NEW.stock, NOW()); END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      -- Create the trigger
+      CREATE TRIGGER Product_after_update_for_each_row_trigger
       AFTER UPDATE
       FOR EACH ROW
       ON "public"."Product"
-      EXECUTE FUNCTION IF (OLD.stock <> NEW.stock) THEN INSERT INTO product_inventory_log(product_id, old_stock, new_stock, changed_at) VALUES (NEW.id, OLD.stock, NEW.stock, NOW()); END IF;;
+      EXECUTE FUNCTION "public"."Product_after_update_for_each_row_trigger_fn"();
 
 -- trigger: Product_before_update_for_each_row_trigger
-CREATE TRIGGER Product_before_update_for_each_row_trigger
+-- Create or replace the trigger function
+      CREATE OR REPLACE FUNCTION "public"."Product_before_update_for_each_row_trigger_fn"()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        IF (OLD.price <> NEW.price) THEN INSERT INTO product_price_history(product_id, old_price, new_price, changed_at) VALUES (OLD.id, OLD.price, NEW.price, NOW());  -- Notify admin if price decreased by more than 25% IF (NEW.price < OLD.price * 0.75) THEN PERFORM pg_notify('price_alerts', 'Product ' || OLD.name || ' price decreased by more than 25%'); END IF; END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      -- Create the trigger
+      CREATE TRIGGER Product_before_update_for_each_row_trigger
       BEFORE UPDATE
       FOR EACH ROW
       ON "public"."Product"
-      EXECUTE FUNCTION IF (OLD.price <> NEW.price) THEN INSERT INTO product_price_history(product_id, old_price, new_price, changed_at) VALUES (OLD.id, OLD.price, NEW.price, NOW());  -- Notify admin if price decreased by more than 25% IF (NEW.price < OLD.price * 0.75) THEN PERFORM pg_notify('price_alerts', 'Product ' || OLD.name || ' price decreased by more than 25%'); END IF; END IF;;
+      EXECUTE FUNCTION "public"."Product_before_update_for_each_row_trigger_fn"();
 
 COMMIT;
 
@@ -236,13 +266,25 @@ DROP EXTENSION IF EXISTS "postgis";
 DROP EXTENSION IF EXISTS "pgcrypto";
 
 -- trigger: Product_before_update_for_each_row_trigger
-DROP TRIGGER IF EXISTS Product_before_update_for_each_row_trigger ON "public"."Product";
+-- Drop the trigger
+      DROP TRIGGER IF EXISTS Product_before_update_for_each_row_trigger ON "public"."Product";
+      
+      -- Drop the function
+      DROP FUNCTION IF EXISTS "public"."Product_before_update_for_each_row_trigger_fn"();
 
 -- trigger: Product_after_update_for_each_row_trigger
-DROP TRIGGER IF EXISTS Product_after_update_for_each_row_trigger ON "public"."Product";
+-- Drop the trigger
+      DROP TRIGGER IF EXISTS Product_after_update_for_each_row_trigger ON "public"."Product";
+      
+      -- Drop the function
+      DROP FUNCTION IF EXISTS "public"."Product_after_update_for_each_row_trigger_fn"();
 
 -- trigger: User_before_update_for_each_row_trigger
-DROP TRIGGER IF EXISTS User_before_update_for_each_row_trigger ON "public"."User";
+-- Drop the trigger
+      DROP TRIGGER IF EXISTS User_before_update_for_each_row_trigger ON "public"."User";
+      
+      -- Drop the function
+      DROP FUNCTION IF EXISTS "public"."User_before_update_for_each_row_trigger_fn"();
 
 -- role: adminRole_grant_0
 

@@ -46,7 +46,10 @@ describe('TriggerOrchestrator Integration', () => {
     expect(steps[0].sql).toContain('CREATE TRIGGER');
     expect(steps[0].sql).toContain('BEFORE UPDATE');
     expect(steps[0].sql).toContain('FOR EACH ROW');
-    expect(steps[0].sql).toContain('EXECUTE FUNCTION update_timestamp()');
+    expect(steps[0].sql).toContain('CREATE OR REPLACE FUNCTION');
+    expect(steps[0].sql).toContain('RETURNS TRIGGER');
+    expect(steps[0].sql).toContain('update_timestamp()');
+    expect(steps[0].sql).toContain('LANGUAGE plpgsql');
   });
 
   it('should handle trigger updates from parsed schema', () => {
@@ -99,7 +102,10 @@ describe('TriggerOrchestrator Integration', () => {
     expect(steps[1].objectType).toBe('trigger');
     expect(steps[1].name).toBe('User_before_update_for_each_row_trigger');
     expect(steps[1].sql).toContain('CREATE TRIGGER');
-    expect(steps[1].sql).toContain('EXECUTE FUNCTION new_update_timestamp()');
+    expect(steps[1].sql).toContain('CREATE OR REPLACE FUNCTION');
+    expect(steps[1].sql).toContain('RETURNS TRIGGER');
+    expect(steps[1].sql).toContain('new_update_timestamp()');
+    expect(steps[1].sql).toContain('LANGUAGE plpgsql');
   });
 
   it('should handle multiple triggers per table from parsed schema', () => {
@@ -154,7 +160,10 @@ describe('TriggerOrchestrator Integration', () => {
     expect(steps[0].name).toBe('User_after_insert_for_each_row_trigger');
     expect(steps[0].sql).toContain('CREATE TRIGGER');
     expect(steps[0].sql).toContain('AFTER INSERT');
-    expect(steps[0].sql).toContain('EXECUTE FUNCTION audit_log()');
+    expect(steps[0].sql).toContain('CREATE OR REPLACE FUNCTION');
+    expect(steps[0].sql).toContain('RETURNS TRIGGER');
+    expect(steps[0].sql).toContain('audit_log()');
+    expect(steps[0].sql).toContain('LANGUAGE plpgsql');
   });
 
   it('should handle custom schema names from parsed schema', () => {

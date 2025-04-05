@@ -117,16 +117,33 @@ export class TriggerOrchestrator {
     schemaName: string
   ): MigrationStep {
     const triggerName = this.generateTriggerName(tableName, trigger);
+    const functionName = `${triggerName}_fn`;
+    
+    // Create a proper function for the trigger
     const sql = `
+      -- Create or replace the trigger function
+      CREATE OR REPLACE FUNCTION "${schemaName}"."${functionName}"()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        ${trigger.execute}
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      -- Create the trigger
       CREATE TRIGGER ${triggerName}
       ${trigger.event}
       ${trigger.level}
       ON "${schemaName}"."${tableName}"
-      EXECUTE FUNCTION ${trigger.execute};
+      EXECUTE FUNCTION "${schemaName}"."${functionName}"();
     `;
 
     const rollbackSql = `
+      -- Drop the trigger
       DROP TRIGGER IF EXISTS ${triggerName} ON "${schemaName}"."${tableName}";
+      
+      -- Drop the function
+      DROP FUNCTION IF EXISTS "${schemaName}"."${functionName}"();
     `;
 
     return {
@@ -144,16 +161,33 @@ export class TriggerOrchestrator {
     schemaName: string
   ): MigrationStep {
     const triggerName = this.generateTriggerName(tableName, trigger);
+    const functionName = `${triggerName}_fn`;
+    
     const sql = `
+      -- Drop the trigger
       DROP TRIGGER IF EXISTS ${triggerName} ON "${schemaName}"."${tableName}";
+      
+      -- Drop the function
+      DROP FUNCTION IF EXISTS "${schemaName}"."${functionName}"();
     `;
 
+    // Create function and trigger for rollback
     const rollbackSql = `
+      -- Create or replace the trigger function
+      CREATE OR REPLACE FUNCTION "${schemaName}"."${functionName}"()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        ${trigger.execute}
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      -- Create the trigger
       CREATE TRIGGER ${triggerName}
       ${trigger.event}
       ${trigger.level}
       ON "${schemaName}"."${tableName}"
-      EXECUTE FUNCTION ${trigger.execute};
+      EXECUTE FUNCTION "${schemaName}"."${functionName}"();
     `;
 
     return {
