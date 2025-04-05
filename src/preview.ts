@@ -63,6 +63,32 @@ function printSchema(schema: any, indent: string = ''): void {
       });
     }
 
+    // Print Indexes
+    if (model.indexes && model.indexes.length > 0) {
+      console.log(indent + '    📇 Indexes:');
+      model.indexes.forEach((index: any) => {
+        let indexDetails = `fields: [${index.fields.join(', ')}]`;
+        
+        if (index.name) {
+          indexDetails += `, name: "${index.name}"`;
+        }
+        
+        if (index.type) {
+          indexDetails += `, type: "${index.type}"`;
+        }
+        
+        if (index.unique !== undefined) {
+          indexDetails += `, unique: ${index.unique}`;
+        }
+        
+        if (index.where) {
+          indexDetails += `, where: "${index.where}"`;
+        }
+        
+        console.log(indent + '      - ' + indexDetails);
+      });
+    }
+
     // Print RLS Configuration
     if (model.rowLevelSecurity) {
       console.log(indent + '    🔒 Row Level Security:');
@@ -117,3 +143,4 @@ console.log(`Total Roles: ${schema.roles.length}`);
 console.log(`Total Relations: ${schema.models.reduce((acc: number, model: any) => acc + model.relations.length, 0)}`);
 console.log(`Total Policies: ${schema.models.reduce((acc: number, model: any) => acc + (model.policies ? model.policies.length : 0), 0)}`);
 console.log(`Total Triggers: ${schema.models.reduce((acc: number, model: any) => acc + (model.triggers ? model.triggers.length : 0), 0)}`); 
+console.log(`Total Indexes: ${schema.models.reduce((acc: number, model: any) => acc + (model.indexes ? model.indexes.length : 0), 0)}`); 

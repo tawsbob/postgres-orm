@@ -310,4 +310,172 @@ describe('SchemaParserV1', () => {
       });
     });
   });
+
+  describe('Index Parsing', () => {
+    it('should parse basic indexes correctly', () => {
+      const schemaContent = `
+        model User {
+          id UUID @id @default(gen_random_uuid())
+          role UserRole
+          isActive BOOLEAN
+          
+          @@index([role, isActive])
+        }
+      `;
+      
+      const schema = parser.parseSchema(undefined, schemaContent);
+      const userModel = schema.models.find(m => m.name === 'User');
+      
+      expect(userModel).toBeDefined();
+      expect(userModel?.indexes).toBeDefined();
+      expect(userModel?.indexes?.length).toBe(1);
+      
+      const index = userModel?.indexes?.[0];
+      expect(index?.fields).toEqual(['role', 'isActive']);
+      expect(index?.name).toBeUndefined();
+      expect(index?.type).toBeUndefined();
+      expect(index?.unique).toBeUndefined();
+      expect(index?.where).toBeUndefined();
+    });
+    
+    it('should parse complex indexes with options correctly', () => {
+      const schemaContent = `
+        model User {
+          id UUID @id @default(gen_random_uuid())
+          name VARCHAR(255)
+          email VARCHAR(255)
+          role UserRole
+          isActive BOOLEAN
+          
+          @@index([name], { 
+            where: "isActive = true", 
+            name: "active_users_name_idx", 
+            type: "btree" 
+          })
+          
+          @@index([email], { 
+            unique: true, 
+            where: "role = 'PUBLIC'" 
+          })
+        }
+      `;
+      
+      const schema = parser.parseSchema(undefined, schemaContent);
+      const userModel = schema.models.find(m => m.name === 'User');
+      
+      expect(userModel).toBeDefined();
+      expect(userModel?.indexes).toBeDefined();
+      expect(userModel?.indexes?.length).toBe(2);
+      
+      // First index
+      const nameIndex = userModel?.indexes?.find(i => i.fields.includes('name'));
+      expect(nameIndex).toBeDefined();
+      expect(nameIndex?.fields).toEqual(['name']);
+      expect(nameIndex?.name).toBe('active_users_name_idx');
+      expect(nameIndex?.type).toBe('btree');
+      expect(nameIndex?.where).toBe('isActive = true');
+      
+      // Second index
+      const emailIndex = userModel?.indexes?.find(i => i.fields.includes('email'));
+      expect(emailIndex).toBeDefined();
+      expect(emailIndex?.fields).toEqual(['email']);
+      expect(emailIndex?.unique).toBe(true);
+      expect(emailIndex?.where).toBe("role = 'PUBLIC'");
+    });
+    
+    it('should parse multiline index declarations correctly', () => {
+      const schemaContent = `
+        model Product {
+          id UUID @id @default(gen_random_uuid())
+          name VARCHAR(255)
+          price DECIMAL(10,2)
+          category VARCHAR(100)
+          tags TEXT[]
+          
+          @@index([
+            category, 
+            price
+          ], { 
+            name: "product_category_price_idx",
+            type: "btree"
+          })
+        }
+      `;
+      
+      const schema = parser.parseSchema(undefined, schemaContent);
+      const productModel = schema.models.find(m => m.name === 'Product');
+      
+      expect(productModel).toBeDefined();
+      expect(productModel?.indexes).toBeDefined();
+      expect(productModel?.indexes?.length).toBe(1);
+      
+      const index = productModel?.indexes?.[0];
+      expect(index?.fields).toEqual(['category', 'price']);
+      expect(index?.name).toBe('product_category_price_idx');
+      expect(index?.type).toBe('btree');
+    });
+
+    it('should parse alternative index types correctly', () => {
+      const schemaContent = `
+        model Product {
+          id UUID @id @default(gen_random_uuid())
+          name VARCHAR(255)
+          metadata JSONB
+          search_vector TEXT
+          location POINT
+          
+          @@index([metadata], { type: "gin" })
+          @@index([search_vector], { type: "gist" })
+          @@index([location], { type: "brin" })
+        }
+      `;
+      
+      const schema = parser.parseSchema(undefined, schemaContent);
+      const productModel = schema.models.find(m => m.name === 'Product');
+      
+      expect(productModel).toBeDefined();
+      expect(productModel?.indexes).toBeDefined();
+      expect(productModel?.indexes?.length).toBe(3);
+      
+      const ginIndex = productModel?.indexes?.find(i => i.type === 'gin');
+      expect(ginIndex).toBeDefined();
+      expect(ginIndex?.fields).toEqual(['metadata']);
+      
+      const gistIndex = productModel?.indexes?.find(i => i.type === 'gist');
+      expect(gistIndex).toBeDefined();
+      expect(gistIndex?.fields).toEqual(['search_vector']);
+      
+      const brinIndex = productModel?.indexes?.find(i => i.type === 'brin');
+      expect(brinIndex).toBeDefined();
+      expect(brinIndex?.fields).toEqual(['location']);
+    });
+    
+    it('should parse complex where clauses in indexes', () => {
+      const schemaContent = `
+        model Order {
+          id UUID @id @default(gen_random_uuid())
+          total DECIMAL(10,2)
+          status OrderStatus
+          createdAt TIMESTAMP
+          
+          @@index([createdAt], { 
+            where: "status = 'DELIVERED' AND total > 100.0", 
+            name: "high_value_delivered_orders" 
+          })
+        }
+      `;
+      
+      const schema = parser.parseSchema(undefined, schemaContent);
+      const orderModel = schema.models.find(m => m.name === 'Order');
+      
+      expect(orderModel).toBeDefined();
+      expect(orderModel?.indexes).toBeDefined();
+      expect(orderModel?.indexes?.length).toBe(1);
+      
+      const index = orderModel?.indexes?.[0];
+      expect(index?.fields).toEqual(['createdAt']);
+      expect(index?.name).toBe('high_value_delivered_orders');
+      expect(index?.where).toBe("status = 'DELIVERED' AND total > 100.0");
+    });
+  });
 });

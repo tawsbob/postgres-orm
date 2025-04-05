@@ -40,6 +40,14 @@ export interface Relation {
   references?: string[];
 }
 
+export interface Index {
+  fields: string[];
+  name?: string;
+  type?: string;
+  unique?: boolean;
+  where?: string;
+}
+
 export interface RowLevelSecurity {
   enabled: boolean;
   force: boolean;
@@ -68,6 +76,7 @@ export interface Model {
   rowLevelSecurity?: RowLevelSecurity;
   policies?: Policy[];
   triggers?: Trigger[];
+  indexes?: Index[];
 }
 
 export interface Enum {

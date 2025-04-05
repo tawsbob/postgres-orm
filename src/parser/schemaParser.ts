@@ -1,4 +1,4 @@
-import { Schema, Model, Enum, Field, Relation, Extension, RowLevelSecurity, Role, Privilege, Policy, FieldType, FieldAttribute, Trigger, TriggerEvent, TriggerLevel } from './types';
+import { Schema, Model, Enum, Field, Relation, Extension, RowLevelSecurity, Role, Privilege, Policy, FieldType, FieldAttribute, Trigger, TriggerEvent, TriggerLevel, Index } from './types';
 import fs from 'fs';
 import path from 'path';
 
@@ -412,6 +412,74 @@ export default class SchemaParserV1 {
   }
 
   /**
+   * Parse an index definition from a schema line
+   * @param indexText The text containing the index definition
+   * @returns Index object with parsed properties
+   */
+  private parseIndex(indexText: string): Index {
+    try {
+      // Basic pattern for @@index directive: @@index([field1, field2])
+      const basicIndexMatch = indexText.match(/@@index\(\s*\[([^\]]+)\]\s*\)/);
+      
+      // Pattern for complex index with options: @@index([field1, field2], { options })
+      const complexIndexMatch = indexText.match(/@@index\(\s*\[([^\]]+)\]\s*,\s*{([^}]+)}\s*\)/);
+      
+      if (!basicIndexMatch && !complexIndexMatch) {
+        throw new Error('Invalid index definition');
+      }
+
+      // Extract fields
+      const fieldsString = basicIndexMatch ? basicIndexMatch[1] : complexIndexMatch![1];
+      const fields = fieldsString.split(',').map(f => f.trim());
+      
+      // Initialize index object with fields
+      const index: Index = { fields };
+      
+      // If it's a complex index with options, parse those options
+      if (complexIndexMatch) {
+        const optionsText = complexIndexMatch[2];
+        
+        // Parse name
+        const nameMatch = optionsText.match(/name:\s*["']([^"']+)["']/);
+        if (nameMatch) {
+          index.name = nameMatch[1];
+        }
+        
+        // Parse type
+        const typeMatch = optionsText.match(/type:\s*["']([^"']+)["']/);
+        if (typeMatch) {
+          index.type = typeMatch[1];
+        }
+        
+        // Parse unique attribute
+        const uniqueMatch = optionsText.match(/unique:\s*(true|false)/);
+        if (uniqueMatch) {
+          index.unique = uniqueMatch[1] === 'true';
+        }
+        
+        // Parse where clause - handle both single and double quotes properly
+        // This regex captures the content between where: and the next comma or closing brace
+        const wherePattern = /where:\s*["']([^,}]+)(?:[,}]|$)/;
+        const whereMatch = optionsText.match(wherePattern);
+        if (whereMatch) {
+          // Extract the where clause, removing any trailing quotes
+          let whereClause = whereMatch[1].trim();
+          // If the where clause ends with a quote, remove it
+          if (whereClause.endsWith("'") || whereClause.endsWith('"')) {
+            whereClause = whereClause.slice(0, -1);
+          }
+          index.where = whereClause;
+        }
+      }
+      
+      return index;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to parse index: ${errorMsg}`);
+    }
+  }
+
+  /**
    * Parse a model definition
    * @param content The content containing the model definition
    * @returns Model object with parsed properties
@@ -429,6 +497,7 @@ export default class SchemaParserV1 {
       let rowLevelSecurity: RowLevelSecurity | undefined;
       const policies: Policy[] = [];
       const triggers: Trigger[] = [];
+      const indexes: Index[] = [];
 
       // Process the model content line by line
       const lines = modelContent.split('\n');
@@ -481,6 +550,28 @@ export default class SchemaParserV1 {
           continue;
         }
 
+        // Handle indexes
+        if (line.includes('@@index')) {
+          // Collect the full index text (may span multiple lines)
+          let indexText = line;
+          let braceCount = (line.match(/{/g) || []).length - (line.match(/}/g) || []).length;
+          let parenCount = (line.match(/\(/g) || []).length - (line.match(/\)/g) || []).length;
+          
+          while ((braceCount > 0 || parenCount > 0) && i + 1 < lines.length) {
+            i++;
+            const nextLine = lines[i].trim();
+            indexText += ' ' + nextLine;
+            
+            braceCount += (nextLine.match(/{/g) || []).length;
+            braceCount -= (nextLine.match(/}/g) || []).length;
+            parenCount += (nextLine.match(/\(/g) || []).length;
+            parenCount -= (nextLine.match(/\)/g) || []).length;
+          }
+          
+          indexes.push(this.parseIndex(indexText));
+          continue;
+        }
+
         // Skip any other directive lines that start with @@
         if (line.startsWith('@@')) {
           continue;
@@ -508,7 +599,7 @@ export default class SchemaParserV1 {
         }
       }
 
-      return { name, fields, relations, rowLevelSecurity, policies, triggers };
+      return { name, fields, relations, rowLevelSecurity, policies, triggers, indexes };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to parse model: ${errorMsg}`);

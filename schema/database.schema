@@ -55,6 +55,20 @@ model User {
     END IF;
     """
   })
+  
+  @@index([role, isActive])
+
+  @@index([name], { 
+    where: "isActive = true", 
+    name: "active_users_name_idx", 
+    type: "btree" 
+  })
+
+  @@index([email], { 
+    unique: true, 
+    where: "role = 'PUBLIC'" 
+  })
+  
 }
 
 model Profile {
