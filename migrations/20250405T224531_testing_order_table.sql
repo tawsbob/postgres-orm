@@ -1,6 +1,6 @@
--- Migration: initial
--- Version: 20250405210433
--- Timestamp: 2025-04-05T21:04:33.783Z
+-- Migration: testing_order_table
+-- Version: 20250405224531
+-- Timestamp: 2025-04-05T22:45:31.244Z
 
 -- Up Migration
 BEGIN;

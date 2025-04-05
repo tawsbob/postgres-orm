@@ -36,19 +36,45 @@ export class MigrationGenerator {
   }
 
   private getTableDependencies(model: Schema['models'][0]): string[] {
-    return model.relations
+    // Get explicit dependencies from relation fields
+    const explicitDependencies = model.relations
       .filter(relation => relation.fields && relation.references)
       .map(relation => relation.model);
+    
+    // Check for implicit dependencies in bidirectional relations
+    const implicitDependencies = model.fields
+      // Look for fields that might be relation types (Object references)
+      .filter(field => {
+        const typeStr = field.type.toString();
+        // Check if it's a custom type (not a primitive SQL type)
+        return !typeStr.match(/^(UUID|VARCHAR|TEXT|SMALLINT|INTEGER|SERIAL|DECIMAL|NUMERIC|BOOLEAN|TIMESTAMP|JSONB|POINT)/i);
+      })
+      .map(field => {
+        // Try to extract model name from relation type
+        const relationInfo = field.type.match(/(\w+)(?:\[\])?/);
+        return relationInfo ? relationInfo[1] : null;
+      })
+      .filter((modelName): modelName is string => modelName !== null);
+    
+    // Combine both dependency types and remove duplicates
+    return [...new Set([...explicitDependencies, ...implicitDependencies])];
   }
 
   private sortModelsByDependencies(models: Schema['models']): Schema['models'] {
     const visited = new Set<string>();
     const sorted: Schema['models'] = [];
     const temp = new Set<string>();
+    const modelMap = new Map<string, Schema['models'][0]>();
+    
+    // Create a map for quick lookup by name
+    models.forEach(model => modelMap.set(model.name, model));
 
     const visit = (model: Schema['models'][0]) => {
       if (temp.has(model.name)) {
-        throw new Error(`Circular dependency detected for table ${model.name}`);
+        // In case of circular dependencies, we need to break the cycle
+        // Log a warning but continue with the sort
+        console.warn(`Warning: Circular dependency detected for table ${model.name}`);
+        return;
       }
       if (visited.has(model.name)) return;
 
@@ -56,8 +82,8 @@ export class MigrationGenerator {
       const dependencies = this.getTableDependencies(model);
       
       for (const depName of dependencies) {
-        const depModel = models.find(m => m.name === depName);
-        if (depModel) {
+        const depModel = modelMap.get(depName);
+        if (depModel && !visited.has(depName)) {
           visit(depModel);
         }
       }
@@ -67,6 +93,7 @@ export class MigrationGenerator {
       sorted.push(model);
     };
 
+    // First pass: sort models with explicit dependencies
     for (const model of models) {
       if (!visited.has(model.name)) {
         visit(model);
