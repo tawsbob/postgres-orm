@@ -1,6 +1,6 @@
--- Migration: inital
--- Version: 20250405225317
--- Timestamp: 2025-04-05T22:53:17.058Z
+-- Migration: init
+-- Version: 20250405231514
+-- Timestamp: 2025-04-05T23:15:14.037Z
 
 -- Up Migration
 BEGIN;
