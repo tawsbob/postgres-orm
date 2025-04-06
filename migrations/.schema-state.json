@@ -10,7 +10,8 @@
             "id",
             "default"
           ],
-          "defaultValue": "gen_random_uuid()"
+          "defaultValue": "gen_random_uuid()",
+          "nullable": false
         },
         {
           "name": "email",
@@ -18,13 +19,15 @@
           "attributes": [
             "unique"
           ],
-          "length": 255
+          "length": 255,
+          "nullable": false
         },
         {
           "name": "name",
           "type": "VARCHAR",
           "attributes": [],
-          "length": 150
+          "length": 150,
+          "nullable": false
         },
         {
           "name": "role",
@@ -32,17 +35,20 @@
           "attributes": [
             "default"
           ],
-          "defaultValue": "USER"
+          "defaultValue": "USER",
+          "nullable": false
         },
         {
           "name": "age",
           "type": "SMALLINT",
-          "attributes": []
+          "attributes": [],
+          "nullable": true
         },
         {
           "name": "balance",
           "type": "INTEGER",
-          "attributes": []
+          "attributes": [],
+          "nullable": false
         },
         {
           "name": "isActive",
@@ -50,7 +56,8 @@
           "attributes": [
             "default"
           ],
-          "defaultValue": "true"
+          "defaultValue": "true",
+          "nullable": false
         },
         {
           "name": "createdAt",
@@ -58,12 +65,14 @@
           "attributes": [
             "default"
           ],
-          "defaultValue": "now()"
+          "defaultValue": "now()",
+          "nullable": false
         },
         {
           "name": "updatedAt",
           "type": "TIMESTAMP",
-          "attributes": []
+          "attributes": [],
+          "nullable": false
         }
       ],
       "relations": [
@@ -90,7 +99,7 @@
             "update"
           ],
           "to": "userRole",
-          "using": "(userId = (SELECT current_setting('app.current_user_id')::integer));"
+          "using": "id = (SELECT current_setting('app.current_user_id')::uuid)"
         },
         {
           "name": "adminAccess",
@@ -140,30 +149,35 @@
             "id",
             "default"
           ],
-          "defaultValue": "gen_random_uuid()"
+          "defaultValue": "gen_random_uuid()",
+          "nullable": false
         },
         {
           "name": "userId",
           "type": "UUID",
           "attributes": [
             "unique"
-          ]
+          ],
+          "nullable": false
         },
         {
           "name": "bio",
           "type": "TEXT",
-          "attributes": []
+          "attributes": [],
+          "nullable": false
         },
         {
           "name": "avatar",
           "type": "VARCHAR",
           "attributes": [],
-          "length": 255
+          "length": 255,
+          "nullable": false
         },
         {
           "name": "location",
           "type": "POINT",
-          "attributes": []
+          "attributes": [],
+          "nullable": false
         }
       ],
       "relations": [
@@ -193,12 +207,14 @@
             "id",
             "default"
           ],
-          "defaultValue": "gen_random_uuid()"
+          "defaultValue": "gen_random_uuid()",
+          "nullable": false
         },
         {
           "name": "userId",
           "type": "UUID",
-          "attributes": []
+          "attributes": [],
+          "nullable": false
         },
         {
           "name": "status",
@@ -206,19 +222,22 @@
           "attributes": [
             "default"
           ],
-          "defaultValue": "PENDING"
+          "defaultValue": "PENDING",
+          "nullable": false
         },
         {
           "name": "totalAmount",
           "type": "DECIMAL",
           "attributes": [],
           "precision": 10,
-          "scale": 2
+          "scale": 2,
+          "nullable": false
         },
         {
           "name": "items",
           "type": "JSONB",
-          "attributes": []
+          "attributes": [],
+          "nullable": false
         },
         {
           "name": "createdAt",
@@ -226,12 +245,14 @@
           "attributes": [
             "default"
           ],
-          "defaultValue": "now()"
+          "defaultValue": "now()",
+          "nullable": false
         },
         {
           "name": "updatedAt",
           "type": "TIMESTAMP",
-          "attributes": []
+          "attributes": [],
+          "nullable": false
         }
       ],
       "relations": [
@@ -279,12 +300,14 @@
             "id",
             "default"
           ],
-          "defaultValue": "gen_random_uuid()"
+          "defaultValue": "gen_random_uuid()",
+          "nullable": false
         },
         {
           "name": "message",
           "type": "TEXT",
-          "attributes": []
+          "attributes": [],
+          "nullable": false
         },
         {
           "name": "createdAt",
@@ -292,7 +315,8 @@
           "attributes": [
             "default"
           ],
-          "defaultValue": "now()"
+          "defaultValue": "now()",
+          "nullable": false
         }
       ],
       "relations": [],
@@ -310,46 +334,54 @@
             "id",
             "default"
           ],
-          "defaultValue": "gen_random_uuid()"
+          "defaultValue": "gen_random_uuid()",
+          "nullable": false
         },
         {
           "name": "name",
           "type": "VARCHAR",
           "attributes": [],
-          "length": 255
+          "length": 255,
+          "nullable": false
         },
         {
           "name": "description",
           "type": "TEXT",
-          "attributes": []
+          "attributes": [],
+          "nullable": false
         },
         {
           "name": "price",
           "type": "DECIMAL",
           "attributes": [],
           "precision": 10,
-          "scale": 2
+          "scale": 2,
+          "nullable": false
         },
         {
           "name": "stock",
           "type": "INTEGER",
-          "attributes": []
+          "attributes": [],
+          "nullable": false
         },
         {
           "name": "category",
           "type": "VARCHAR",
           "attributes": [],
-          "length": 100
+          "length": 100,
+          "nullable": false
         },
         {
           "name": "tags",
           "type": "TEXT[]",
-          "attributes": []
+          "attributes": [],
+          "nullable": false
         },
         {
           "name": "metadata",
           "type": "JSONB",
-          "attributes": []
+          "attributes": [],
+          "nullable": false
         },
         {
           "name": "createdAt",
@@ -357,12 +389,14 @@
           "attributes": [
             "default"
           ],
-          "defaultValue": "now()"
+          "defaultValue": "now()",
+          "nullable": false
         },
         {
           "name": "updatedAt",
           "type": "TIMESTAMP",
-          "attributes": []
+          "attributes": [],
+          "nullable": false
         }
       ],
       "relations": [
@@ -395,29 +429,34 @@
           "type": "SERIAL",
           "attributes": [
             "id"
-          ]
+          ],
+          "nullable": false
         },
         {
           "name": "orderId",
           "type": "UUID",
-          "attributes": []
+          "attributes": [],
+          "nullable": false
         },
         {
           "name": "productId",
           "type": "UUID",
-          "attributes": []
+          "attributes": [],
+          "nullable": false
         },
         {
           "name": "quantity",
           "type": "INTEGER",
-          "attributes": []
+          "attributes": [],
+          "nullable": false
         },
         {
           "name": "price",
           "type": "DECIMAL",
           "attributes": [],
           "precision": 10,
-          "scale": 2
+          "scale": 2,
+          "nullable": false
         }
       ],
       "relations": [

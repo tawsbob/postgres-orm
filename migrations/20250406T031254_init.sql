@@ -1,6 +1,6 @@
--- Migration: initial
--- Version: 20250405233537
--- Timestamp: 2025-04-05T23:35:37.950Z
+-- Migration: init
+-- Version: 20250406031254
+-- Timestamp: 2025-04-06T03:12:54.086Z
 
 -- Up Migration
 BEGIN;
@@ -32,22 +32,18 @@ END $$;
 DO $$ BEGIN
   CREATE TABLE "public"."User" (
   "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  "email" VARCHAR(255) UNIQUE,
-  "name" VARCHAR(150),
-  "role" "public"."UserRole" DEFAULT 'USER'::"public"."UserRole",
+  "email" VARCHAR(255) UNIQUE NOT NULL,
+  "name" VARCHAR(150) NOT NULL,
+  "role" "public"."UserRole" DEFAULT 'USER'::"public"."UserRole" NOT NULL,
   "age" SMALLINT,
-  "balance" INTEGER,
-  "isActive" BOOLEAN DEFAULT true,
-  "createdAt" TIMESTAMP DEFAULT now(),
-  "updatedAt" TIMESTAMP
+  "balance" INTEGER NOT NULL,
+  "isActive" BOOLEAN DEFAULT true NOT NULL,
+  "createdAt" TIMESTAMP DEFAULT now() NOT NULL,
+  "updatedAt" TIMESTAMP NOT NULL
 );
 EXCEPTION
   WHEN duplicate_table THEN NULL;
 END $$;
-
--- index: User_email_idx
-CREATE UNIQUE INDEX "idx_User_email"
-ON "public"."User" ("email");
 
 -- index: idx_User_role_isActive
 CREATE INDEX "idx_User_role_isActive" ON "public"."User"  ("role", "isActive") ;
@@ -64,38 +60,20 @@ ALTER TABLE "public"."User" ENABLE ROW LEVEL SECURITY;
 -- rls: rls_User_1
 ALTER TABLE "public"."User" FORCE ROW LEVEL SECURITY;
 
--- policy: policy_User_userIsolation
-CREATE POLICY "userIsolation" ON "public"."User"
-    FOR SELECT, UPDATE
-    TO userRole
-    USING ((userId = (SELECT current_setting('app.current_user_id')::integer)););
-
--- policy: policy_User_adminAccess
-CREATE POLICY "adminAccess" ON "public"."User"
-    FOR ALL
-    TO adminRole
-    USING (true);
-
 -- table: Profile
 DO $$ BEGIN
   CREATE TABLE "public"."Profile" (
   "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  "userId" UUID UNIQUE,
-  "bio" TEXT,
-  "avatar" VARCHAR(255),
-  "location" POINT
+  "userId" UUID UNIQUE NOT NULL,
+  "bio" TEXT NOT NULL,
+  "avatar" VARCHAR(255) NOT NULL,
+  "location" POINT NOT NULL
 );
 EXCEPTION
   WHEN duplicate_table THEN NULL;
 END $$;
 
--- constraint: Profile_UserProfile_fkey
-ALTER TABLE "public"."Profile"
-ADD CONSTRAINT "fk_Profile_UserProfile"
-FOREIGN KEY ("userId")
-REFERENCES "public"."User" ("id");
-
--- index: Profile_userId_idx
+-- index: idx_Profile_userId
 CREATE UNIQUE INDEX "idx_Profile_userId"
 ON "public"."Profile" ("userId");
 
@@ -103,22 +81,16 @@ ON "public"."Profile" ("userId");
 DO $$ BEGIN
   CREATE TABLE "public"."Order" (
   "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  "userId" UUID,
-  "status" "public"."OrderStatus" DEFAULT 'PENDING'::"public"."OrderStatus",
-  "totalAmount" DECIMAL(10,2),
-  "items" JSONB,
-  "createdAt" TIMESTAMP DEFAULT now(),
-  "updatedAt" TIMESTAMP
+  "userId" UUID NOT NULL,
+  "status" "public"."OrderStatus" DEFAULT 'PENDING'::"public"."OrderStatus" NOT NULL,
+  "totalAmount" DECIMAL(10,2) NOT NULL,
+  "items" JSONB NOT NULL,
+  "createdAt" TIMESTAMP DEFAULT now() NOT NULL,
+  "updatedAt" TIMESTAMP NOT NULL
 );
 EXCEPTION
   WHEN duplicate_table THEN NULL;
 END $$;
-
--- constraint: Order_user_fkey
-ALTER TABLE "public"."Order"
-ADD CONSTRAINT "fk_Order_user"
-FOREIGN KEY ("userId")
-REFERENCES "public"."User" ("id");
 
 -- index: idx_Order_userId
 CREATE INDEX "idx_Order_userId" ON "public"."Order"  ("userId") ;
@@ -130,8 +102,8 @@ CREATE INDEX "order_status_created_idx" ON "public"."Order"  ("status", "created
 DO $$ BEGIN
   CREATE TABLE "public"."Log" (
   "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  "message" TEXT,
-  "createdAt" TIMESTAMP DEFAULT now()
+  "message" TEXT NOT NULL,
+  "createdAt" TIMESTAMP DEFAULT now() NOT NULL
 );
 EXCEPTION
   WHEN duplicate_table THEN NULL;
@@ -141,15 +113,15 @@ END $$;
 DO $$ BEGIN
   CREATE TABLE "public"."Product" (
   "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  "name" VARCHAR(255),
-  "description" TEXT,
-  "price" DECIMAL(10,2),
-  "stock" INTEGER,
-  "category" VARCHAR(100),
-  "tags" TEXT[],
-  "metadata" JSONB,
-  "createdAt" TIMESTAMP DEFAULT now(),
-  "updatedAt" TIMESTAMP
+  "name" VARCHAR(255) NOT NULL,
+  "description" TEXT NOT NULL,
+  "price" DECIMAL(10,2) NOT NULL,
+  "stock" INTEGER NOT NULL,
+  "category" VARCHAR(100) NOT NULL,
+  "tags" TEXT[] NOT NULL,
+  "metadata" JSONB NOT NULL,
+  "createdAt" TIMESTAMP DEFAULT now() NOT NULL,
+  "updatedAt" TIMESTAMP NOT NULL
 );
 EXCEPTION
   WHEN duplicate_table THEN NULL;
@@ -159,14 +131,26 @@ END $$;
 DO $$ BEGIN
   CREATE TABLE "public"."ProductOrder" (
   "id" SERIAL PRIMARY KEY,
-  "orderId" UUID,
-  "productId" UUID,
-  "quantity" INTEGER,
-  "price" DECIMAL(10,2)
+  "orderId" UUID NOT NULL,
+  "productId" UUID NOT NULL,
+  "quantity" INTEGER NOT NULL,
+  "price" DECIMAL(10,2) NOT NULL
 );
 EXCEPTION
   WHEN duplicate_table THEN NULL;
 END $$;
+
+-- constraint: Profile_UserProfile_fkey
+ALTER TABLE "public"."Profile"
+ADD CONSTRAINT "fk_Profile_UserProfile"
+FOREIGN KEY ("userId")
+REFERENCES "public"."User" ("id");
+
+-- constraint: Order_user_fkey
+ALTER TABLE "public"."Order"
+ADD CONSTRAINT "fk_Order_user"
+FOREIGN KEY ("userId")
+REFERENCES "public"."User" ("id");
 
 -- constraint: ProductOrder_order_fkey
 ALTER TABLE "public"."ProductOrder"
@@ -179,6 +163,12 @@ ALTER TABLE "public"."ProductOrder"
 ADD CONSTRAINT "fk_ProductOrder_product"
 FOREIGN KEY ("productId")
 REFERENCES "public"."Product" ("id");
+
+-- policy: policy_User_userIsolation
+CREATE POLICY "userIsolation" ON "public"."User"
+    FOR SELECT, UPDATE
+    TO userRole
+    USING (id = (SELECT current_setting('app.current_user_id')::uuid));
 
 -- role: userRole_create
 DO $$ BEGIN
@@ -200,57 +190,6 @@ END $$;
 -- role: adminRole_grant_0
 GRANT SELECT, INSERT, UPDATE, DELETE ON "public"."User" TO "adminRole";
 
--- trigger: User_before_update_for_each_row_trigger
--- Create or replace the trigger function
-      CREATE OR REPLACE FUNCTION "public"."User_before_update_for_each_row_trigger_fn"()
-      RETURNS TRIGGER AS $$
-      BEGIN
-        IF (OLD.balance <> NEW.balance) THEN RAISE EXCEPTION 'Balance cannot be updated directly'; END IF;
-        RETURN NEW;
-      END;
-      $$ LANGUAGE plpgsql;
-
-      -- Create the trigger
-      CREATE TRIGGER User_before_update_for_each_row_trigger
-      BEFORE UPDATE
-      FOR EACH ROW
-      ON "public"."User"
-      EXECUTE FUNCTION "public"."User_before_update_for_each_row_trigger_fn"();
-
--- trigger: Product_after_update_for_each_row_trigger
--- Create or replace the trigger function
-      CREATE OR REPLACE FUNCTION "public"."Product_after_update_for_each_row_trigger_fn"()
-      RETURNS TRIGGER AS $$
-      BEGIN
-        IF (OLD.stock <> NEW.stock) THEN INSERT INTO Log (message) VALUES ('Tabela Product atualizada AFTER UPDATE'); RETURN NEW; END IF;
-        RETURN NEW;
-      END;
-      $$ LANGUAGE plpgsql;
-
-      -- Create the trigger
-      CREATE TRIGGER Product_after_update_for_each_row_trigger
-      AFTER UPDATE
-      FOR EACH ROW
-      ON "public"."Product"
-      EXECUTE FUNCTION "public"."Product_after_update_for_each_row_trigger_fn"();
-
--- trigger: Product_before_update_for_each_row_trigger
--- Create or replace the trigger function
-      CREATE OR REPLACE FUNCTION "public"."Product_before_update_for_each_row_trigger_fn"()
-      RETURNS TRIGGER AS $$
-      BEGIN
-        IF (OLD.price <> NEW.price) THEN INSERT INTO Log (message) VALUES ('Tabela Product atualizada BEFORE UPDATE'); RETURN NEW; END IF;
-        RETURN NEW;
-      END;
-      $$ LANGUAGE plpgsql;
-
-      -- Create the trigger
-      CREATE TRIGGER Product_before_update_for_each_row_trigger
-      BEFORE UPDATE
-      FOR EACH ROW
-      ON "public"."Product"
-      EXECUTE FUNCTION "public"."Product_before_update_for_each_row_trigger_fn"();
-
 COMMIT;
 
 -- Down Migration
@@ -271,27 +210,6 @@ DROP EXTENSION IF EXISTS "postgis";
 -- extension: pgcrypto
 DROP EXTENSION IF EXISTS "pgcrypto";
 
--- trigger: Product_before_update_for_each_row_trigger
--- Drop the trigger
-      DROP TRIGGER IF EXISTS Product_before_update_for_each_row_trigger ON "public"."Product";
-      
-      -- Drop the function
-      DROP FUNCTION IF EXISTS "public"."Product_before_update_for_each_row_trigger_fn"();
-
--- trigger: Product_after_update_for_each_row_trigger
--- Drop the trigger
-      DROP TRIGGER IF EXISTS Product_after_update_for_each_row_trigger ON "public"."Product";
-      
-      -- Drop the function
-      DROP FUNCTION IF EXISTS "public"."Product_after_update_for_each_row_trigger_fn"();
-
--- trigger: User_before_update_for_each_row_trigger
--- Drop the trigger
-      DROP TRIGGER IF EXISTS User_before_update_for_each_row_trigger ON "public"."User";
-      
-      -- Drop the function
-      DROP FUNCTION IF EXISTS "public"."User_before_update_for_each_row_trigger_fn"();
-
 -- role: adminRole_grant_0
 
 
@@ -304,6 +222,9 @@ DROP ROLE IF EXISTS "adminRole";
 -- role: userRole_create
 DROP ROLE IF EXISTS "userRole";
 
+-- policy: policy_User_userIsolation
+DROP POLICY IF EXISTS "userIsolation" ON "public"."User";
+
 -- constraint: ProductOrder_product_fkey
 ALTER TABLE "public"."ProductOrder"
 DROP CONSTRAINT IF EXISTS "fk_ProductOrder_product";
@@ -312,31 +233,25 @@ DROP CONSTRAINT IF EXISTS "fk_ProductOrder_product";
 ALTER TABLE "public"."ProductOrder"
 DROP CONSTRAINT IF EXISTS "fk_ProductOrder_order";
 
+-- constraint: Order_user_fkey
+ALTER TABLE "public"."Order"
+DROP CONSTRAINT IF EXISTS "fk_Order_user";
+
+-- constraint: Profile_UserProfile_fkey
+ALTER TABLE "public"."Profile"
+DROP CONSTRAINT IF EXISTS "fk_Profile_UserProfile";
+
 -- index: order_status_created_idx
 DROP INDEX IF EXISTS "public"."order_status_created_idx";
 
 -- index: idx_Order_userId
 DROP INDEX IF EXISTS "public"."idx_Order_userId";
 
--- constraint: Order_user_fkey
-ALTER TABLE "public"."Order"
-DROP CONSTRAINT IF EXISTS "fk_Order_user";
-
--- index: Profile_userId_idx
+-- index: idx_Profile_userId
 DROP INDEX IF EXISTS "public"."idx_Profile_userId";
 
--- constraint: Profile_UserProfile_fkey
-ALTER TABLE "public"."Profile"
-DROP CONSTRAINT IF EXISTS "fk_Profile_UserProfile";
-
--- policy: policy_User_adminAccess
-DROP POLICY IF EXISTS "adminAccess" ON "public"."User";
-
--- policy: policy_User_userIsolation
-DROP POLICY IF EXISTS "userIsolation" ON "public"."User";
-
 -- rls: rls_User_1
-ALTER TABLE "public"."User" DISABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."User" NO FORCE ROW LEVEL SECURITY;
 
 -- rls: rls_User_0
 ALTER TABLE "public"."User" DISABLE ROW LEVEL SECURITY;
@@ -349,9 +264,6 @@ DROP INDEX IF EXISTS "public"."active_users_name_idx";
 
 -- index: idx_User_role_isActive
 DROP INDEX IF EXISTS "public"."idx_User_role_isActive";
-
--- index: User_email_idx
-DROP INDEX IF EXISTS "public"."idx_User_email";
 
 -- table: ProductOrder
 DO $$ BEGIN

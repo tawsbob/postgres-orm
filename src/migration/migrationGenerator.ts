@@ -271,18 +271,16 @@ export class MigrationGenerator {
       includeRoles = true,
       includePolicies = true,
       includeRelations = true,
-      includeTriggers = true
+      includeTriggers = true,
+      timestamp = new Date().toISOString()
     } = options;
 
     const steps: MigrationStep[] = [];
-    const timestamp = new Date().toISOString();
-    const version = this.generateVersion(timestamp);
-
-    // Sort models by dependencies for proper creation order
+    // Ensure timestamp is a string
+    const timestampStr = typeof timestamp === 'string' ? timestamp : timestamp.toISOString();
+    
+    // Sort models by dependencies (so tables with foreign keys are created after their referenced tables)
     const sortedModels = this.sortModelsByDependencies(schema.models);
-
-    // Up migration steps (create objects)
-    // =================================
 
     // Handle extensions
     if (includeExtensions) {
@@ -393,10 +391,16 @@ export class MigrationGenerator {
 
     // Handle relations
     if (includeRelations) {
-      const relationDiff = this.relationOrchestrator.compareRelations(
-        schema.models,
-        schema.models
-      );
+      // Create a diff for all relations in the schema as if they were all new additions
+      const relationDiff = {
+        added: sortedModels.flatMap(model => 
+          model.relations
+            .filter(relation => relation.fields && relation.references)
+            .map(relation => ({ model, relation }))
+        ),
+        removed: [],
+        updated: []
+      };
       
       const relationSteps = this.relationOrchestrator.generateRelationMigrationSteps(relationDiff, schemaName);
       steps.push(...relationSteps);
@@ -439,10 +443,10 @@ export class MigrationGenerator {
     }
 
     return {
-      version: this.generateVersion(timestamp),
+      version: this.generateVersion(timestampStr),
       description: 'Initial schema migration',
       steps,
-      timestamp
+      timestamp: timestampStr
     };
   }
 
