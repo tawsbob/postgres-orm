@@ -86,10 +86,16 @@ describe('RoleOrchestrator Integration', () => {
     });
 
     // Assert
-    expect(migration.steps.length).toBe(2); // Role drop + rollback privileges
+    expect(migration.steps.length).toBe(2); // Revoke privileges + role drop
     expect(migration.steps[0].objectType).toBe('role');
     expect(migration.steps[0].type).toBe('drop');
-    expect(migration.steps[0].sql).toContain('DROP ROLE IF EXISTS "userRole"');
+    expect(migration.steps[0].name).toBe('userRole_revoke_0');
+    expect(migration.steps[0].sql).toContain('REVOKE SELECT ON "public"."User" FROM "userRole"');
+    
+    expect(migration.steps[1].objectType).toBe('role');
+    expect(migration.steps[1].type).toBe('drop');
+    expect(migration.steps[1].name).toBe('userRole_drop');
+    expect(migration.steps[1].sql).toContain('DROP ROLE IF EXISTS "userRole"');
   });
 
   it('should generate migration steps for updated roles', () => {

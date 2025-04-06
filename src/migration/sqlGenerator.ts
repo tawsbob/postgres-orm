@@ -280,7 +280,18 @@ END $$;`);
   }
 
   static generateDropRoleSQL(role: Role, schemaName: string = this.DEFAULT_SCHEMA): string[] {
-    return [`DROP ROLE IF EXISTS "${role.name}";`];
+    const sql: string[] = [];
+    
+    // Generate revoke statements for each privilege
+    role.privileges.forEach(privilege => {
+      const privileges = privilege.privileges.map(p => p.toUpperCase()).join(', ');
+      sql.push(`REVOKE ${privileges} ON "${schemaName}"."${privilege.on}" FROM "${role.name}";`);
+    });
+    
+    // Add the drop role statement
+    sql.push(`DROP ROLE IF EXISTS "${role.name}";`);
+    
+    return sql;
   }
 
   static generateCreatePolicySQL(

@@ -471,17 +471,51 @@ export class MigrationGenerator {
       .reverse()
       .map(step => {
         if (step.objectType === 'role') {
-          // For roles, always use the comprehensive drop role SQL
-          const role = schema.roles.find(r => r.name === step.name.split('_')[0])!;
-          const dropRoleSql = SQLGenerator.generateDropRoleSQL(role, options.schemaName);
-          const createRoleSql = SQLGenerator.generateCreateRoleSQL(role, options.schemaName);
+          // For roles, we need special handling
+          const roleName = step.name.split('_')[0];
+          const role = schema.roles.find(r => r.name === roleName);
           
-          return {
-            ...step,
-            sql: dropRoleSql[0],
-            rollbackSql: createRoleSql[0]
-          };
+          if (role) {
+            // If it's a step for an existing role
+            const dropRoleSql = SQLGenerator.generateDropRoleSQL(role, options.schemaName);
+            const createRoleSql = SQLGenerator.generateCreateRoleSQL(role, options.schemaName);
+            
+            // Get the appropriate SQL based on step type (create, grant, revoke, drop)
+            if (step.name.includes('_grant_')) {
+              // For grant steps, the rollback should be the matching revoke
+              const grantIndex = parseInt(step.name.split('_grant_')[1]);
+              return {
+                ...step,
+                sql: grantIndex < dropRoleSql.length - 1 ? dropRoleSql[grantIndex] : '',
+                rollbackSql: step.sql
+              };
+            } else if (step.name.includes('_revoke_')) {
+              // For revoke steps, the rollback should be the matching grant
+              const revokeIndex = parseInt(step.name.split('_revoke_')[1]);
+              return {
+                ...step,
+                sql: revokeIndex + 1 < createRoleSql.length ? createRoleSql[revokeIndex + 1] : '',
+                rollbackSql: step.sql
+              };
+            } else if (step.name.includes('_create') || step.name.includes('_recreate')) {
+              // For role creation, the rollback is the drop statement
+              return {
+                ...step,
+                sql: dropRoleSql[dropRoleSql.length - 1], // Last statement is DROP ROLE
+                rollbackSql: step.sql
+              };
+            } else if (step.name.includes('_drop')) {
+              // For role drop, the rollback is the create statement
+              return {
+                ...step,
+                sql: createRoleSql[0], // First statement is CREATE ROLE
+                rollbackSql: step.sql
+              };
+            }
+          }
         }
+        
+        // For all other object types, just swap SQL and rollbackSql
         return {
           ...step,
           sql: step.rollbackSql,

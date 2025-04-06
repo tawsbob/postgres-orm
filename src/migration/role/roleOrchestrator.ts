@@ -155,7 +155,7 @@ export class RoleOrchestrator {
         objectType: 'role',
         name: `${role.name}_create`,
         sql: roleSql[0],
-        rollbackSql: dropRoleSql[0]
+        rollbackSql: dropRoleSql[dropRoleSql.length - 1] // Last statement is DROP ROLE
       });
       
       // Grant privileges steps
@@ -165,7 +165,7 @@ export class RoleOrchestrator {
           objectType: 'role',
           name: `${role.name}_grant_${index}`,
           sql,
-          rollbackSql: '' // No specific rollback for grants, dropping the role revokes everything
+          rollbackSql: index < dropRoleSql.length - 1 ? dropRoleSql[index] : '' // Match revoke statements with grants
         });
       });
     });
@@ -175,23 +175,24 @@ export class RoleOrchestrator {
       const dropRoleSql = SQLGenerator.generateDropRoleSQL(role, schemaName);
       const createRoleSql = SQLGenerator.generateCreateRoleSQL(role, schemaName);
       
-      steps.push({
-        type: 'drop',
-        objectType: 'role',
-        name: role.name,
-        sql: dropRoleSql[0],
-        rollbackSql: createRoleSql[0]
-      });
-      
-      // Add grant privilege steps for rollback
-      createRoleSql.slice(1).forEach((sql, index) => {
+      // Add revoke privilege steps
+      dropRoleSql.slice(0, -1).forEach((sql, index) => {
         steps.push({
           type: 'drop',
           objectType: 'role',
-          name: `${role.name}_grant_${index}`,
-          sql: '', // No SQL needed here since we're dropping the role
-          rollbackSql: sql // For rollback, we'll need to re-grant privileges
+          name: `${role.name}_revoke_${index}`,
+          sql,
+          rollbackSql: index + 1 < createRoleSql.length ? createRoleSql[index + 1] : '' // Match grants with revokes
         });
+      });
+      
+      // Drop role step
+      steps.push({
+        type: 'drop',
+        objectType: 'role',
+        name: `${role.name}_drop`,
+        sql: dropRoleSql[dropRoleSql.length - 1], // Last statement is DROP ROLE
+        rollbackSql: createRoleSql[0] // First statement is CREATE ROLE
       });
     });
     
@@ -202,13 +203,24 @@ export class RoleOrchestrator {
       const createRoleSql = SQLGenerator.generateCreateRoleSQL(role, schemaName);
       const recreateRoleSql = SQLGenerator.generateCreateRoleSQL(previousRole, schemaName);
       
+      // Add revoke privilege steps
+      dropRoleSql.slice(0, -1).forEach((sql, index) => {
+        steps.push({
+          type: 'alter',
+          objectType: 'role',
+          name: `${role.name}_revoke_${index}`,
+          sql,
+          rollbackSql: index + 1 < recreateRoleSql.length ? recreateRoleSql[index + 1] : ''
+        });
+      });
+      
       // Drop the role
       steps.push({
         type: 'alter',
         objectType: 'role',
         name: `${role.name}_drop`,
-        sql: dropRoleSql[0],
-        rollbackSql: recreateRoleSql[0]
+        sql: dropRoleSql[dropRoleSql.length - 1], // Last statement is DROP ROLE
+        rollbackSql: recreateRoleSql[0] // First statement is CREATE ROLE
       });
       
       // Recreate with new privileges
@@ -228,17 +240,6 @@ export class RoleOrchestrator {
           name: `${role.name}_grant_${index}`,
           sql,
           rollbackSql: ''
-        });
-      });
-      
-      // Add rollback steps for re-granting original privileges
-      recreateRoleSql.slice(1).forEach((sql, index) => {
-        steps.push({
-          type: 'alter',
-          objectType: 'role',
-          name: `${role.name}_rollback_grant_${index}`,
-          sql: '',
-          rollbackSql: sql
         });
       });
     });

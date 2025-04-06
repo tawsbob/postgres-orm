@@ -112,7 +112,7 @@
         {
           "event": "BEFORE UPDATE",
           "level": "FOR EACH ROW",
-          "execute": "IF (OLD.balance <> NEW.balance) THEN RAISE EXCEPTION 'Balance cannot be updated directly'; END IF;"
+          "execute": "IF (OLD.balance <> NEW.balance) THEN RAISE EXCEPTION 'Balance cannot be updated directly'; END IF; RETURN NEW;"
         }
       ],
       "indexes": [
@@ -190,7 +190,9 @@
           ],
           "references": [
             "id"
-          ]
+          ],
+          "onDelete": "CASCADE",
+          "onUpdate": "SET NULL"
         }
       ],
       "policies": [],

@@ -52,6 +52,7 @@ model User {
     IF (OLD.balance <> NEW.balance) THEN
       RAISE EXCEPTION 'Balance cannot be updated directly';
     END IF;
+    RETURN NEW;
     """
   })
   

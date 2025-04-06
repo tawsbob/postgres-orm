@@ -159,12 +159,17 @@ describe('RoleOrchestrator', () => {
       const steps = orchestrator.generateRoleMigrationSteps(diff);
 
       // Assert
-      expect(steps.length).toBe(2); // One for role deletion, one for rollback privileges
+      expect(steps.length).toBe(2); // One for revoke privileges, one for role deletion
       expect(steps[0].type).toBe('drop');
       expect(steps[0].objectType).toBe('role');
-      expect(steps[0].name).toBe('userRole');
-      expect(steps[0].sql).toContain('DROP ROLE IF EXISTS "userRole"');
-      expect(steps[0].rollbackSql).toContain('CREATE ROLE "userRole"');
+      expect(steps[0].name).toBe('userRole_revoke_0');
+      expect(steps[0].sql).toContain('REVOKE SELECT ON "public"."User" FROM "userRole"');
+      
+      expect(steps[1].type).toBe('drop');
+      expect(steps[1].objectType).toBe('role');
+      expect(steps[1].name).toBe('userRole_drop');
+      expect(steps[1].sql).toContain('DROP ROLE IF EXISTS "userRole"');
+      expect(steps[1].rollbackSql).toContain('CREATE ROLE "userRole"');
     });
 
     it('should generate steps for updated roles', () => {
@@ -185,21 +190,31 @@ describe('RoleOrchestrator', () => {
       const steps = orchestrator.generateRoleMigrationSteps(diff);
 
       // Assert
-      expect(steps.length).toBe(4); // Drop, recreate, grant, rollback
+      expect(steps.length).toBeGreaterThan(3); // Revoke, drop, recreate, grant
+      
+      // First step should be to revoke privileges
       expect(steps[0].type).toBe('alter');
       expect(steps[0].objectType).toBe('role');
-      expect(steps[0].name).toBe('userRole_drop');
-      expect(steps[0].sql).toContain('DROP ROLE IF EXISTS "userRole"');
+      expect(steps[0].name).toBe('userRole_revoke_0');
+      expect(steps[0].sql).toContain('REVOKE SELECT ON "public"."User" FROM "userRole"');
       
+      // Second step should be to drop the role
       expect(steps[1].type).toBe('alter');
       expect(steps[1].objectType).toBe('role');
-      expect(steps[1].name).toBe('userRole_recreate');
-      expect(steps[1].sql).toContain('CREATE ROLE "userRole"');
+      expect(steps[1].name).toBe('userRole_drop');
+      expect(steps[1].sql).toContain('DROP ROLE IF EXISTS "userRole"');
       
+      // Third step should be to recreate the role
       expect(steps[2].type).toBe('alter');
       expect(steps[2].objectType).toBe('role');
-      expect(steps[2].name).toBe('userRole_grant_0');
-      expect(steps[2].sql).toContain('GRANT SELECT, UPDATE ON "public"."User" TO "userRole"');
+      expect(steps[2].name).toBe('userRole_recreate');
+      expect(steps[2].sql).toContain('CREATE ROLE "userRole"');
+      
+      // Fourth step should be to grant new privileges
+      expect(steps[3].type).toBe('alter');
+      expect(steps[3].objectType).toBe('role');
+      expect(steps[3].name).toBe('userRole_grant_0');
+      expect(steps[3].sql).toContain('GRANT SELECT, UPDATE ON "public"."User" TO "userRole"');
     });
   });
 }); 

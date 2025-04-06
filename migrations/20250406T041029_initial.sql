@@ -1,6 +1,6 @@
 -- Migration: initial
--- Version: 20250406032757
--- Timestamp: 2025-04-06T03:27:57.906Z
+-- Version: 20250406041029
+-- Timestamp: 2025-04-06T04:10:29.483Z
 
 -- Up Migration
 BEGIN;
@@ -144,25 +144,33 @@ END $$;
 ALTER TABLE "public"."Profile"
 ADD CONSTRAINT "fk_Profile_UserProfile"
 FOREIGN KEY ("userId")
-REFERENCES "public"."User" ("id");
+REFERENCES "public"."User" ("id")
+ON DELETE CASCADE
+ON UPDATE SET NULL;
 
 -- constraint: Order_user_fkey
 ALTER TABLE "public"."Order"
 ADD CONSTRAINT "fk_Order_user"
 FOREIGN KEY ("userId")
-REFERENCES "public"."User" ("id");
+REFERENCES "public"."User" ("id")
+ON DELETE RESTRICT
+ON UPDATE RESTRICT;
 
 -- constraint: ProductOrder_order_fkey
 ALTER TABLE "public"."ProductOrder"
 ADD CONSTRAINT "fk_ProductOrder_order"
 FOREIGN KEY ("orderId")
-REFERENCES "public"."Order" ("id");
+REFERENCES "public"."Order" ("id")
+ON DELETE RESTRICT
+ON UPDATE RESTRICT;
 
 -- constraint: ProductOrder_product_fkey
 ALTER TABLE "public"."ProductOrder"
 ADD CONSTRAINT "fk_ProductOrder_product"
 FOREIGN KEY ("productId")
-REFERENCES "public"."Product" ("id");
+REFERENCES "public"."Product" ("id")
+ON DELETE RESTRICT
+ON UPDATE RESTRICT;
 
 -- policy: policy_User_userIsolation
 CREATE POLICY "userIsolation" ON "public"."User"
@@ -201,8 +209,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON "public"."User" TO "adminRole";
       CREATE OR REPLACE FUNCTION "public"."User_before_update_for_each_row_trigger_fn"()
       RETURNS TRIGGER AS $$
       BEGIN
-        IF (OLD.balance <> NEW.balance) THEN RAISE EXCEPTION 'Balance cannot be updated directly'; END IF;
-    RETURN NEW;
+        IF (OLD.balance <> NEW.balance) THEN RAISE EXCEPTION 'Balance cannot be updated directly'; END IF; RETURN NEW;
       END;
       $$ LANGUAGE plpgsql;
 
@@ -287,13 +294,13 @@ DROP EXTENSION IF EXISTS "pgcrypto";
       DROP FUNCTION IF EXISTS "public"."User_before_update_for_each_row_trigger_fn"();
 
 -- role: adminRole_grant_0
-
+REVOKE SELECT, INSERT, UPDATE, DELETE ON "public"."User" FROM "adminRole";
 
 -- role: adminRole_create
 DROP ROLE IF EXISTS "adminRole";
 
 -- role: userRole_grant_0
-
+REVOKE SELECT, INSERT, UPDATE ON "public"."User" FROM "userRole";
 
 -- role: userRole_create
 DROP ROLE IF EXISTS "userRole";
