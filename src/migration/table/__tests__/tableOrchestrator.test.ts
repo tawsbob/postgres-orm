@@ -1,5 +1,5 @@
 import { TableOrchestrator, TableDiff } from '../tableOrchestrator';
-import { Field, Model } from '../../../parser/types';
+import { Field, Model, FieldType, FieldAttribute } from '../../../parser/types';
 
 describe('TableOrchestrator', () => {
   let orchestrator: TableOrchestrator;
@@ -406,6 +406,262 @@ describe('TableOrchestrator', () => {
       expect(steps[0].type).toBe('alter');
       expect(steps[0].objectType).toBe('table');
       expect(steps[0].name).toBe('User_alter_name');
+    });
+  });
+
+  describe('Nullable Field Detection', () => {
+    it('should detect when a field changes from nullable to non-nullable', () => {
+      // Create models with the same structure but different nullability
+      const fromModel: Model = {
+        name: 'User',
+        fields: [
+          {
+            name: 'id',
+            type: 'UUID' as FieldType,
+            attributes: ['id' as FieldAttribute, 'default' as FieldAttribute],
+            defaultValue: 'gen_random_uuid()',
+            nullable: false
+          },
+          {
+            name: 'name',
+            type: 'VARCHAR' as FieldType,
+            attributes: [],
+            length: 150,
+            nullable: true
+          }
+        ],
+        relations: []
+      };
+
+      const toModel: Model = {
+        name: 'User',
+        fields: [
+          {
+            name: 'id',
+            type: 'UUID' as FieldType,
+            attributes: ['id' as FieldAttribute, 'default' as FieldAttribute],
+            defaultValue: 'gen_random_uuid()',
+            nullable: false
+          },
+          {
+            name: 'name',
+            type: 'VARCHAR' as FieldType,
+            attributes: [],
+            length: 150,
+            nullable: false // Changed from true to false
+          }
+        ],
+        relations: []
+      };
+
+      const diff = orchestrator.compareTables([fromModel], [toModel]);
+      
+      // Should find the changed model
+      expect(diff.updated).toHaveLength(1);
+      
+      // Should have the correct updated fields
+      const fieldUpdates = diff.updated[0].fieldsUpdated;
+      expect(fieldUpdates).toHaveLength(1);
+      
+      // Should identify the name field as updated
+      const nameFieldUpdate = fieldUpdates.find(update => update.field.name === 'name');
+      expect(nameFieldUpdate).toBeDefined();
+      expect(nameFieldUpdate?.previousField.nullable).toBe(true);
+      expect(nameFieldUpdate?.field.nullable).toBe(false);
+    });
+
+    it('should detect when a field changes from non-nullable to nullable', () => {
+      // Create models with the same structure but different nullability
+      const fromModel: Model = {
+        name: 'Product',
+        fields: [
+          {
+            name: 'id',
+            type: 'UUID' as FieldType,
+            attributes: ['id' as FieldAttribute],
+            nullable: false
+          },
+          {
+            name: 'description',
+            type: 'TEXT' as FieldType,
+            attributes: [],
+            nullable: false
+          }
+        ],
+        relations: []
+      };
+
+      const toModel: Model = {
+        name: 'Product',
+        fields: [
+          {
+            name: 'id',
+            type: 'UUID' as FieldType,
+            attributes: ['id' as FieldAttribute],
+            nullable: false
+          },
+          {
+            name: 'description',
+            type: 'TEXT' as FieldType,
+            attributes: [],
+            nullable: true // Changed from false to true
+          }
+        ],
+        relations: []
+      };
+
+      const diff = orchestrator.compareTables([fromModel], [toModel]);
+      
+      // Should find the changed model
+      expect(diff.updated).toHaveLength(1);
+      
+      // Should have the correct updated fields
+      const fieldUpdates = diff.updated[0].fieldsUpdated;
+      expect(fieldUpdates).toHaveLength(1);
+      
+      // Should identify the description field as updated
+      const descriptionFieldUpdate = fieldUpdates.find(update => update.field.name === 'description');
+      expect(descriptionFieldUpdate).toBeDefined();
+      expect(descriptionFieldUpdate?.previousField.nullable).toBe(false);
+      expect(descriptionFieldUpdate?.field.nullable).toBe(true);
+    });
+
+    it('should not detect changes when nullability remains the same', () => {
+      // Create models with the same structure and nullability
+      const fromModel: Model = {
+        name: 'Order',
+        fields: [
+          {
+            name: 'id',
+            type: 'UUID' as FieldType,
+            attributes: ['id' as FieldAttribute],
+            nullable: false
+          },
+          {
+            name: 'notes',
+            type: 'TEXT' as FieldType,
+            attributes: [],
+            nullable: true
+          }
+        ],
+        relations: []
+      };
+
+      const toModel: Model = {
+        name: 'Order',
+        fields: [
+          {
+            name: 'id',
+            type: 'UUID' as FieldType,
+            attributes: ['id' as FieldAttribute],
+            nullable: false
+          },
+          {
+            name: 'notes',
+            type: 'TEXT' as FieldType,
+            attributes: [],
+            nullable: true // Same as from model
+          }
+        ],
+        relations: []
+      };
+
+      const diff = orchestrator.compareTables([fromModel], [toModel]);
+      
+      // Should not find any updated models
+      expect(diff.updated).toHaveLength(0);
+    });
+
+    it('should detect multiple nullable field changes in the same model', () => {
+      // Create models with multiple nullable changes
+      const fromModel: Model = {
+        name: 'User',
+        fields: [
+          {
+            name: 'id',
+            type: 'UUID' as FieldType,
+            attributes: ['id' as FieldAttribute],
+            nullable: false
+          },
+          {
+            name: 'name',
+            type: 'VARCHAR' as FieldType,
+            attributes: [],
+            length: 150,
+            nullable: true
+          },
+          {
+            name: 'email',
+            type: 'VARCHAR' as FieldType,
+            attributes: ['unique' as FieldAttribute],
+            length: 255,
+            nullable: false
+          },
+          {
+            name: 'phoneNumber',
+            type: 'VARCHAR' as FieldType,
+            attributes: [],
+            length: 20,
+            nullable: true
+          }
+        ],
+        relations: []
+      };
+
+      const toModel: Model = {
+        name: 'User',
+        fields: [
+          {
+            name: 'id',
+            type: 'UUID' as FieldType,
+            attributes: ['id' as FieldAttribute],
+            nullable: false
+          },
+          {
+            name: 'name',
+            type: 'VARCHAR' as FieldType,
+            attributes: [],
+            length: 150,
+            nullable: false // Changed from true to false
+          },
+          {
+            name: 'email',
+            type: 'VARCHAR' as FieldType,
+            attributes: ['unique' as FieldAttribute],
+            length: 255,
+            nullable: true // Changed from false to true
+          },
+          {
+            name: 'phoneNumber',
+            type: 'VARCHAR' as FieldType,
+            attributes: [],
+            length: 20,
+            nullable: true // No change
+          }
+        ],
+        relations: []
+      };
+
+      const diff = orchestrator.compareTables([fromModel], [toModel]);
+      
+      // Should find the changed model
+      expect(diff.updated).toHaveLength(1);
+      
+      // Should have the correct updated fields
+      const fieldUpdates = diff.updated[0].fieldsUpdated;
+      expect(fieldUpdates).toHaveLength(2);
+      
+      // Should identify the name field as updated
+      const nameFieldUpdate = fieldUpdates.find(update => update.field.name === 'name');
+      expect(nameFieldUpdate).toBeDefined();
+      expect(nameFieldUpdate?.previousField.nullable).toBe(true);
+      expect(nameFieldUpdate?.field.nullable).toBe(false);
+      
+      // Should identify the email field as updated
+      const emailFieldUpdate = fieldUpdates.find(update => update.field.name === 'email');
+      expect(emailFieldUpdate).toBeDefined();
+      expect(emailFieldUpdate?.previousField.nullable).toBe(false);
+      expect(emailFieldUpdate?.field.nullable).toBe(true);
     });
   });
 });

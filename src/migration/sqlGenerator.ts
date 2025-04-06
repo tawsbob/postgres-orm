@@ -105,6 +105,12 @@ END $$;`;
         sql += ` DEFAULT ${field.defaultValue}`;
       }
     }
+    
+    // Add NOT NULL constraint if the field is not nullable and not a primary key
+    // (primary keys are implicitly NOT NULL)
+    if (field.nullable !== true && !field.attributes.includes('id')) {
+      sql += ' NOT NULL';
+    }
 
     return sql;
   }
@@ -401,15 +407,13 @@ END $$;`);
       }
     }
 
-    // Handle NOT NULL constraint
-    // Instead of checking for 'notNull' attribute which doesn't exist,
-    // we'll check for the absence of 'optional' attribute or equivalent logic
-    const oldNullable = !oldField.attributes.some(attr => attr === 'default' || attr === 'id'); 
-    const newNullable = !newField.attributes.some(attr => attr === 'default' || attr === 'id');
+    // Handle NOT NULL constraint based on nullable property
+    const oldIsNotNull = !oldField.nullable && !oldField.attributes.includes('id'); // Primary keys are implicitly NOT NULL
+    const newIsNotNull = !newField.nullable && !newField.attributes.includes('id');
     
-    if (oldNullable && !newNullable) {
+    if (!oldIsNotNull && newIsNotNull) {
       alterSql += `,\n  ALTER COLUMN "${newField.name}" SET NOT NULL`;
-    } else if (!oldNullable && newNullable) {
+    } else if (oldIsNotNull && !newIsNotNull) {
       alterSql += `,\n  ALTER COLUMN "${newField.name}" DROP NOT NULL`;
     }
 

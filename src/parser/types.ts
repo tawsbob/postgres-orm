@@ -29,6 +29,7 @@ export interface Field {
   length?: number;
   precision?: number;
   scale?: number;
+  nullable?: boolean;
 }
 
 export interface Relation {

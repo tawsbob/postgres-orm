@@ -181,6 +181,11 @@ export class TableOrchestrator {
       return true;
     }
 
+    // Compare nullable status
+    if (fromField.nullable !== toField.nullable) {
+      return true;
+    }
+
     // Compare attributes
     if (this.haveAttributesChanged(fromField.attributes, toField.attributes)) return true;
 

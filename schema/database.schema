@@ -24,7 +24,7 @@ model User {
   email         VARCHAR(255)    @unique
   name          VARCHAR(150)
   role          UserRole        @default(USER)
-  age           SMALLINT
+  age?          SMALLINT
   balance       INTEGER
   isActive      BOOLEAN         @default(true)
   createdAt     TIMESTAMP       @default(now())

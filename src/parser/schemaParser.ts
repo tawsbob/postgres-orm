@@ -31,7 +31,15 @@ export default class SchemaParserV1 {
         throw new Error(`Invalid field format: ${line}`);
       }
 
-      const name = parts[0];
+      let name = parts[0];
+      let nullable = false;
+      
+      // Check if the field name has a question mark, indicating nullable
+      if (name.endsWith('?')) {
+        nullable = true;
+        name = name.slice(0, -1); // Remove the '?' from the name
+      }
+      
       let typeWithModifiers = parts[1];
       
       // Extract array types (e.g., TEXT[])
@@ -98,7 +106,8 @@ export default class SchemaParserV1 {
         defaultValue,
         length,
         precision,
-        scale
+        scale,
+        nullable
       };
     } catch (error) {
       throw new Error(`Failed to parse field: ${line}. ${(error as Error).message}`);
