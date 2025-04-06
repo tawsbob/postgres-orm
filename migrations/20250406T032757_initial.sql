@@ -1,6 +1,6 @@
 -- Migration: initial
--- Version: 20250406032048
--- Timestamp: 2025-04-06T03:20:48.273Z
+-- Version: 20250406032757
+-- Timestamp: 2025-04-06T03:27:57.906Z
 
 -- Up Migration
 BEGIN;
@@ -170,6 +170,12 @@ CREATE POLICY "userIsolation" ON "public"."User"
     TO userRole
     USING (id = (SELECT current_setting('app.current_user_id')::uuid));
 
+-- policy: policy_User_adminAccess
+CREATE POLICY "adminAccess" ON "public"."User"
+    FOR ALL
+    TO adminRole
+    USING (true);
+
 -- role: userRole_create
 DO $$ BEGIN
   CREATE ROLE "userRole";
@@ -291,6 +297,9 @@ DROP ROLE IF EXISTS "adminRole";
 
 -- role: userRole_create
 DROP ROLE IF EXISTS "userRole";
+
+-- policy: policy_User_adminAccess
+DROP POLICY IF EXISTS "adminAccess" ON "public"."User";
 
 -- policy: policy_User_userIsolation
 DROP POLICY IF EXISTS "userIsolation" ON "public"."User";

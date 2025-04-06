@@ -411,7 +411,7 @@ export class MigrationGenerator {
       const policyDiff = {
         added: schema.models
           .filter(model => model.policies && model.policies.length > 0)
-          .map(model => ({ model, policy: model.policies![0] })),
+          .flatMap(model => model.policies!.map(policy => ({ model, policy }))),
         removed: [],
         updated: []
       };
