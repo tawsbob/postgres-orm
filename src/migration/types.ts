@@ -6,6 +6,7 @@ export interface MigrationStep {
   name: string;
   sql: string;
   rollbackSql: string;
+  schemaName?: string;
 }
 
 export interface Migration {

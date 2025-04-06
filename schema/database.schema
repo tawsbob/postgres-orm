@@ -28,7 +28,7 @@ model User {
   balance       INTEGER
   isActive      BOOLEAN         @default(true)
   createdAt     TIMESTAMP       @default(now())
-  updatedAt     TIMESTAMP       @updatedAt
+  updatedAt     TIMESTAMP       
   profile       Profile?        @relation("UserProfile")
   orders        Order[]
 
@@ -36,8 +36,8 @@ model User {
 
    @@policy("userIsolation", {
     for: ["select", "update"],
-    to: "Profile",
-    using: "(userId = (SELECT current_setting('app.current_user_id')::integer));"
+    to: "userRole",
+    using: "true"
   })
 
   @@policy("adminAccess", {
@@ -86,12 +86,18 @@ model Order {
   totalAmount   DECIMAL(10,2)
   items         JSONB
   createdAt     TIMESTAMP       @default(now())
-  updatedAt     TIMESTAMP       @updatedAt
+  updatedAt     TIMESTAMP       
   user          User            @relation(fields: [userId], references: [id])
   products      ProductOrder[]
   
   @@index([userId])
   @@index([status, createdAt], { name: "order_status_created_idx" })
+}
+
+model Log {
+  id            UUID            @id @default(gen_random_uuid())
+  message       TEXT
+  createdAt     TIMESTAMP       @default(now())
 }
 
 model Product {
@@ -104,15 +110,16 @@ model Product {
   tags          TEXT[]
   metadata      JSONB
   createdAt     TIMESTAMP       @default(now())
-  updatedAt     TIMESTAMP       @updatedAt
+  updatedAt     TIMESTAMP       
   orders        ProductOrder[]
   
   @@trigger("AFTER UPDATE", {
     level: "FOR EACH ROW",
     execute: """
     IF (OLD.stock <> NEW.stock) THEN
-      INSERT INTO product_inventory_log(product_id, old_stock, new_stock, changed_at)
-      VALUES (NEW.id, OLD.stock, NEW.stock, NOW());
+      INSERT INTO Log (message)
+      VALUES ('Tabela Product atualizada AFTER UPDATE');
+      RETURN NEW;
     END IF;
     """
   })
@@ -121,13 +128,9 @@ model Product {
     level: "FOR EACH ROW",
     execute: """
     IF (OLD.price <> NEW.price) THEN
-      INSERT INTO product_price_history(product_id, old_price, new_price, changed_at)
-      VALUES (OLD.id, OLD.price, NEW.price, NOW());
-      
-      -- Notify admin if price decreased by more than 25%
-      IF (NEW.price < OLD.price * 0.75) THEN
-        PERFORM pg_notify('price_alerts', 'Product ' || OLD.name || ' price decreased by more than 25%');
-      END IF;
+      INSERT INTO Log (message)
+      VALUES ('Tabela Product atualizada BEFORE UPDATE');
+      RETURN NEW;
     END IF;
     """
   })
@@ -143,7 +146,7 @@ model ProductOrder {
   product       Product         @relation(fields: [productId], references: [id])
 } 
 
-role logdUser {
+role userRole {
   privileges: ["select", "insert", "update"] on User
 }
 

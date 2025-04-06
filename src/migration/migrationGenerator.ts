@@ -276,168 +276,162 @@ export class MigrationGenerator {
 
     const steps: MigrationStep[] = [];
     const timestamp = new Date().toISOString();
+    const version = this.generateVersion(timestamp);
+
+    // Sort models by dependencies for proper creation order
+    const sortedModels = this.sortModelsByDependencies(schema.models);
+
+    // Up migration steps (create objects)
+    // =================================
 
     // Handle extensions
     if (includeExtensions) {
       schema.extensions.forEach(extension => {
-        const extensionSql = SQLGenerator.generateCreateExtensionSQL(extension.name, extension.version);
-        const dropExtensionSql = SQLGenerator.generateDropExtensionSQL(extension.name);
-        
         steps.push({
           type: 'create',
           objectType: 'extension',
           name: extension.name,
-          sql: extensionSql,
-          rollbackSql: dropExtensionSql
+          sql: SQLGenerator.generateCreateExtensionSQL(extension.name, extension.version),
+          rollbackSql: SQLGenerator.generateDropExtensionSQL(extension.name),
+          schemaName
         });
       });
     }
 
     // Handle enums
     if (includeEnums) {
-      schema.enums.forEach(enumDef => {
-        const enumSql = SQLGenerator.generateCreateEnumSQL(enumDef, schemaName);
-        const dropEnumSql = SQLGenerator.generateDropEnumSQL(enumDef, schemaName);
-        
+      schema.enums.forEach(enumType => {
         steps.push({
           type: 'create',
           objectType: 'enum',
-          name: enumDef.name,
-          sql: enumSql,
-          rollbackSql: dropEnumSql
+          name: enumType.name,
+          sql: SQLGenerator.generateCreateEnumSQL(enumType, schemaName),
+          rollbackSql: SQLGenerator.generateDropEnumSQL(enumType, schemaName),
+          schemaName
         });
       });
     }
 
-    // Handle tables, constraints, and indexes
+    // Handle tables
     if (includeTables) {
-      // Sort models topologically (based on dependencies)
-      const sortedModels = this.sortModelsByDependencies(schema.models);
-      
       sortedModels.forEach(model => {
-        // Create table
-        const tableSql = SQLGenerator.generateCreateTableSQL(model, schemaName);
-        const dropTableSql = SQLGenerator.generateDropTableSQL(model, schemaName);
-        
         steps.push({
           type: 'create',
           objectType: 'table',
           name: model.name,
-          sql: tableSql,
-          rollbackSql: dropTableSql
+          sql: SQLGenerator.generateCreateTableSQL(model, schemaName),
+          rollbackSql: SQLGenerator.generateDropTableSQL(model, schemaName),
+          schemaName
         });
 
-        // Add relations as foreign key constraints
-        if (includeRelations && includeConstraints) {
-          model.relations.forEach(relation => {
-            if (relation.fields && relation.references) {
-              const constraintSql = SQLGenerator.generateCreateForeignKeySQL(model, relation, schemaName);
-              const dropConstraintSql = SQLGenerator.generateDropForeignKeySQL(model, relation, schemaName);
+        // Create indexes for unique fields
+        if (includeIndexes) {
+          // Track processed field names to avoid creating multiple indexes for the same field
+          const processedFieldIndexes = new Set<string>();
+
+          // First, add explicit indexes from model.indexes
+          if (model.indexes) {
+            model.indexes.forEach(index => {
+              // Record these field names as processed
+              index.fields.forEach(fieldName => processedFieldIndexes.add(fieldName));
               
+              // Create the explicit index
               steps.push({
                 type: 'create',
-                objectType: 'constraint',
-                name: `${model.name}_${relation.name}_fkey`,
-                sql: constraintSql,
-                rollbackSql: dropConstraintSql
+                objectType: 'index',
+                name: index.name || `idx_${model.name}_${index.fields.join('_')}`,
+                sql: SQLGenerator.generateCreateIndexFromIndexTypeSQL(model, index, schemaName),
+                rollbackSql: SQLGenerator.generateDropIndexFromIndexTypeSQL(model, index, schemaName),
+                schemaName
+              });
+            });
+          }
+
+          // Then handle unique field attributes, but only if they weren't already processed
+          model.fields.forEach(field => {
+            // Skip if we already created an index for this field
+            if (processedFieldIndexes.has(field.name)) {
+              return;
+            }
+            
+            const indexSQL = SQLGenerator.generateCreateIndexSQL(model, field, schemaName);
+            const dropIndexSQL = SQLGenerator.generateDropIndexSQL(model, field, schemaName);
+            
+            if (indexSQL && dropIndexSQL) {
+              steps.push({
+                type: 'create',
+                objectType: 'index',
+                name: `idx_${model.name}_${field.name}`,
+                sql: indexSQL,
+                rollbackSql: dropIndexSQL,
+                schemaName
               });
             }
           });
         }
-
-        // Create indexes
-        if (includeIndexes) {
-          // Add field-based unique indexes
-          model.fields.forEach(field => {
-            if (field.attributes.includes('unique') && !field.attributes.includes('id')) {
-              const indexSql = SQLGenerator.generateCreateIndexSQL(model, field, schemaName);
-              const dropIndexSql = SQLGenerator.generateDropIndexSQL(model, field, schemaName);
-              
+        
+        // Create RLS if specified
+        if (includeRLS && model.rowLevelSecurity) {
+          const rlsSql = SQLGenerator.generateRLSSQL(model, schemaName);
+          if (rlsSql.length > 0) {
+            rlsSql.forEach((sql, index) => {
               steps.push({
                 type: 'create',
-                objectType: 'index',
-                name: `${model.name}_${field.name}_idx`,
-                sql: indexSql,
-                rollbackSql: dropIndexSql
-              });
-            }
-          });
-          
-          // Add explicit indexes defined in the model
-          if (model.indexes && model.indexes.length > 0) {
-            model.indexes.forEach(index => {
-              const indexName = index.name || `idx_${model.name}_${index.fields.join('_')}`;
-              const indexSql = SQLGenerator.generateCreateIndexFromIndexTypeSQL(model, index, schemaName);
-              const dropIndexSql = SQLGenerator.generateDropIndexFromIndexTypeSQL(model, index, schemaName);
-              
-              steps.push({
-                type: 'create',
-                objectType: 'index',
-                name: indexName,
-                sql: indexSql,
-                rollbackSql: dropIndexSql
+                objectType: 'rls',
+                name: `rls_${model.name}_${index}`,
+                sql,
+                rollbackSql: index === 0 
+                  ? SQLGenerator.generateDisableRLSSQL(model, schemaName)
+                  : SQLGenerator.generateNoForceRLSSQL(model, schemaName),
+                schemaName
               });
             });
           }
         }
-
-        // Configure RLS
-        if (includeRLS && model.rowLevelSecurity) {
-          // Create fake diff entry for a model with RLS
-          const rlsDiff = {
-            added: [{ model }],
-            removed: [],
-            updated: []
-          };
-          
-          // Use the RLS orchestrator to generate steps
-          const rlsSteps = this.rlsOrchestrator.generateRLSMigrationSteps(rlsDiff, schemaName);
-          steps.push(...rlsSteps);
-        }
-
-        // Add policies using the policy orchestrator
-        if (includePolicies && model.policies && model.policies.length > 0) {
-          // Create a fake diff entry for a model with policies
-          const policyDiff = {
-            added: model.policies.map(policy => ({ model, policy })),
-            removed: [],
-            updated: []
-          };
-          
-          // Use the policy orchestrator to generate steps
-          const policySteps = this.policyOrchestrator.generatePolicyMigrationSteps(policyDiff, schemaName);
-          steps.push(...policySteps);
-        }
       });
     }
 
-    // Generate role steps using the role orchestrator
+    // Handle relations
+    if (includeRelations) {
+      const relationDiff = this.relationOrchestrator.compareRelations(
+        schema.models,
+        schema.models
+      );
+      
+      const relationSteps = this.relationOrchestrator.generateRelationMigrationSteps(relationDiff, schemaName);
+      steps.push(...relationSteps);
+    }
+
+    // Handle policies
+    if (includePolicies && schema.models.length > 0) {
+      const policyDiff = {
+        added: schema.models
+          .filter(model => model.policies && model.policies.length > 0)
+          .map(model => ({ model, policy: model.policies![0] })),
+        removed: [],
+        updated: []
+      };
+      
+      const policySteps = this.policyOrchestrator.generatePolicyMigrationSteps(policyDiff, schemaName);
+      steps.push(...policySteps);
+    }
+
+    // Handle roles
     if (includeRoles && schema.roles.length > 0) {
-      // Create a fake diff entry for roles
       const roleDiff = {
         added: schema.roles,
         removed: [],
         updated: []
       };
       
-      // Use the role orchestrator to generate steps
       const roleSteps = this.roleOrchestrator.generateRoleMigrationSteps(roleDiff, schemaName);
       steps.push(...roleSteps);
     }
 
-    // Handle triggers using the trigger orchestrator
+    // Handle triggers
     if (includeTriggers) {
-      // Create an empty schema to compare with
-      const emptySchema: Schema = {
-        models: [],
-        enums: [],
-        extensions: [],
-        roles: []
-      };
-      
-      // Use the trigger orchestrator to generate steps
       const triggerSteps = this.triggerOrchestrator.generateTriggerSteps(
-        emptySchema,
+        schema,
         schema,
         { schemaName }
       );

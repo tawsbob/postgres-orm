@@ -1,6 +1,6 @@
--- Migration: init
--- Version: 20250405231514
--- Timestamp: 2025-04-05T23:15:14.037Z
+-- Migration: initial
+-- Version: 20250405233537
+-- Timestamp: 2025-04-05T23:35:37.950Z
 
 -- Up Migration
 BEGIN;
@@ -67,7 +67,7 @@ ALTER TABLE "public"."User" FORCE ROW LEVEL SECURITY;
 -- policy: policy_User_userIsolation
 CREATE POLICY "userIsolation" ON "public"."User"
     FOR SELECT, UPDATE
-    TO Profile
+    TO userRole
     USING ((userId = (SELECT current_setting('app.current_user_id')::integer)););
 
 -- policy: policy_User_adminAccess
@@ -120,6 +120,23 @@ ADD CONSTRAINT "fk_Order_user"
 FOREIGN KEY ("userId")
 REFERENCES "public"."User" ("id");
 
+-- index: idx_Order_userId
+CREATE INDEX "idx_Order_userId" ON "public"."Order"  ("userId") ;
+
+-- index: order_status_created_idx
+CREATE INDEX "order_status_created_idx" ON "public"."Order"  ("status", "createdAt") ;
+
+-- table: Log
+DO $$ BEGIN
+  CREATE TABLE "public"."Log" (
+  "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  "message" TEXT,
+  "createdAt" TIMESTAMP DEFAULT now()
+);
+EXCEPTION
+  WHEN duplicate_table THEN NULL;
+END $$;
+
 -- table: Product
 DO $$ BEGIN
   CREATE TABLE "public"."Product" (
@@ -163,26 +180,15 @@ ADD CONSTRAINT "fk_ProductOrder_product"
 FOREIGN KEY ("productId")
 REFERENCES "public"."Product" ("id");
 
--- table: Testing
+-- role: userRole_create
 DO $$ BEGIN
-  CREATE TABLE "public"."Testing" (
-  "id" SERIAL PRIMARY KEY,
-  "name" VARCHAR(150),
-  "createdAt" TIMESTAMP DEFAULT now()
-);
-EXCEPTION
-  WHEN duplicate_table THEN NULL;
-END $$;
-
--- role: logdUser_create
-DO $$ BEGIN
-  CREATE ROLE "logdUser";
+  CREATE ROLE "userRole";
 EXCEPTION
   WHEN duplicate_object THEN NULL;
 END $$;
 
--- role: logdUser_grant_0
-GRANT SELECT, INSERT, UPDATE ON "public"."User" TO "logdUser";
+-- role: userRole_grant_0
+GRANT SELECT, INSERT, UPDATE ON "public"."User" TO "userRole";
 
 -- role: adminRole_create
 DO $$ BEGIN
@@ -216,7 +222,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON "public"."User" TO "adminRole";
       CREATE OR REPLACE FUNCTION "public"."Product_after_update_for_each_row_trigger_fn"()
       RETURNS TRIGGER AS $$
       BEGIN
-        IF (OLD.stock <> NEW.stock) THEN INSERT INTO product_inventory_log(product_id, old_stock, new_stock, changed_at) VALUES (NEW.id, OLD.stock, NEW.stock, NOW()); END IF;
+        IF (OLD.stock <> NEW.stock) THEN INSERT INTO Log (message) VALUES ('Tabela Product atualizada AFTER UPDATE'); RETURN NEW; END IF;
         RETURN NEW;
       END;
       $$ LANGUAGE plpgsql;
@@ -233,7 +239,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON "public"."User" TO "adminRole";
       CREATE OR REPLACE FUNCTION "public"."Product_before_update_for_each_row_trigger_fn"()
       RETURNS TRIGGER AS $$
       BEGIN
-        IF (OLD.price <> NEW.price) THEN INSERT INTO product_price_history(product_id, old_price, new_price, changed_at) VALUES (OLD.id, OLD.price, NEW.price, NOW());  -- Notify admin if price decreased by more than 25% IF (NEW.price < OLD.price * 0.75) THEN PERFORM pg_notify('price_alerts', 'Product ' || OLD.name || ' price decreased by more than 25%'); END IF; END IF;
+        IF (OLD.price <> NEW.price) THEN INSERT INTO Log (message) VALUES ('Tabela Product atualizada BEFORE UPDATE'); RETURN NEW; END IF;
         RETURN NEW;
       END;
       $$ LANGUAGE plpgsql;
@@ -292,11 +298,11 @@ DROP EXTENSION IF EXISTS "pgcrypto";
 -- role: adminRole_create
 DROP ROLE IF EXISTS "adminRole";
 
--- role: logdUser_grant_0
+-- role: userRole_grant_0
 
 
--- role: logdUser_create
-DROP ROLE IF EXISTS "logdUser";
+-- role: userRole_create
+DROP ROLE IF EXISTS "userRole";
 
 -- constraint: ProductOrder_product_fkey
 ALTER TABLE "public"."ProductOrder"
@@ -305,6 +311,12 @@ DROP CONSTRAINT IF EXISTS "fk_ProductOrder_product";
 -- constraint: ProductOrder_order_fkey
 ALTER TABLE "public"."ProductOrder"
 DROP CONSTRAINT IF EXISTS "fk_ProductOrder_order";
+
+-- index: order_status_created_idx
+DROP INDEX IF EXISTS "public"."order_status_created_idx";
+
+-- index: idx_Order_userId
+DROP INDEX IF EXISTS "public"."idx_Order_userId";
 
 -- constraint: Order_user_fkey
 ALTER TABLE "public"."Order"
@@ -341,18 +353,6 @@ DROP INDEX IF EXISTS "public"."idx_User_role_isActive";
 -- index: User_email_idx
 DROP INDEX IF EXISTS "public"."idx_User_email";
 
--- table: Testing
-DO $$ BEGIN
-  -- Revoke all privileges on the table
-  REVOKE ALL PRIVILEGES ON "public"."Testing" FROM PUBLIC;
-  REVOKE ALL PRIVILEGES ON "public"."Testing" FROM postgres;
-  
-  -- Drop the table
-  DROP TABLE IF EXISTS "public"."Testing" CASCADE;
-EXCEPTION
-  WHEN undefined_table THEN NULL;
-END $$;
-
 -- table: ProductOrder
 DO $$ BEGIN
   -- Revoke all privileges on the table
@@ -373,6 +373,18 @@ DO $$ BEGIN
   
   -- Drop the table
   DROP TABLE IF EXISTS "public"."Product" CASCADE;
+EXCEPTION
+  WHEN undefined_table THEN NULL;
+END $$;
+
+-- table: Log
+DO $$ BEGIN
+  -- Revoke all privileges on the table
+  REVOKE ALL PRIVILEGES ON "public"."Log" FROM PUBLIC;
+  REVOKE ALL PRIVILEGES ON "public"."Log" FROM postgres;
+  
+  -- Drop the table
+  DROP TABLE IF EXISTS "public"."Log" CASCADE;
 EXCEPTION
   WHEN undefined_table THEN NULL;
 END $$;

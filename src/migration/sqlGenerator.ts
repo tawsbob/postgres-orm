@@ -168,6 +168,19 @@ END $$;`;
   ): string {
     if (!field.attributes.includes('unique')) return '';
 
+    // Check if this field already has a filtered unique index
+    // If the model has indexes that target this field and are unique
+    const hasFilteredUniqueIndex = model.indexes?.some(idx => 
+      idx.fields.includes(field.name) && 
+      idx.unique === true && 
+      idx.where !== undefined
+    );
+
+    // Skip creating the standard unique index if a filtered one exists
+    if (hasFilteredUniqueIndex) {
+      return '';
+    }
+
     const indexName = `idx_${model.name}_${field.name}`;
     return `CREATE UNIQUE INDEX "${indexName}"\n` +
            `ON "${schemaName}"."${model.name}" ("${field.name}");`;

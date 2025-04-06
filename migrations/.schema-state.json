@@ -63,9 +63,7 @@
         {
           "name": "updatedAt",
           "type": "TIMESTAMP",
-          "attributes": [
-            "updatedAt"
-          ]
+          "attributes": []
         }
       ],
       "relations": [
@@ -91,7 +89,7 @@
             "select",
             "update"
           ],
-          "to": "Profile",
+          "to": "userRole",
           "using": "(userId = (SELECT current_setting('app.current_user_id')::integer));"
         },
         {
@@ -233,9 +231,7 @@
         {
           "name": "updatedAt",
           "type": "TIMESTAMP",
-          "attributes": [
-            "updatedAt"
-          ]
+          "attributes": []
         }
       ],
       "relations": [
@@ -256,6 +252,50 @@
           "type": "one-to-many"
         }
       ],
+      "policies": [],
+      "triggers": [],
+      "indexes": [
+        {
+          "fields": [
+            "userId"
+          ]
+        },
+        {
+          "fields": [
+            "status",
+            "createdAt"
+          ],
+          "name": "order_status_created_idx"
+        }
+      ]
+    },
+    {
+      "name": "Log",
+      "fields": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "attributes": [
+            "id",
+            "default"
+          ],
+          "defaultValue": "gen_random_uuid()"
+        },
+        {
+          "name": "message",
+          "type": "TEXT",
+          "attributes": []
+        },
+        {
+          "name": "createdAt",
+          "type": "TIMESTAMP",
+          "attributes": [
+            "default"
+          ],
+          "defaultValue": "now()"
+        }
+      ],
+      "relations": [],
       "policies": [],
       "triggers": [],
       "indexes": []
@@ -322,9 +362,7 @@
         {
           "name": "updatedAt",
           "type": "TIMESTAMP",
-          "attributes": [
-            "updatedAt"
-          ]
+          "attributes": []
         }
       ],
       "relations": [
@@ -339,12 +377,12 @@
         {
           "event": "AFTER UPDATE",
           "level": "FOR EACH ROW",
-          "execute": "IF (OLD.stock <> NEW.stock) THEN INSERT INTO product_inventory_log(product_id, old_stock, new_stock, changed_at) VALUES (NEW.id, OLD.stock, NEW.stock, NOW()); END IF;"
+          "execute": "IF (OLD.stock <> NEW.stock) THEN INSERT INTO Log (message) VALUES ('Tabela Product atualizada AFTER UPDATE'); RETURN NEW; END IF;"
         },
         {
           "event": "BEFORE UPDATE",
           "level": "FOR EACH ROW",
-          "execute": "IF (OLD.price <> NEW.price) THEN INSERT INTO product_price_history(product_id, old_price, new_price, changed_at) VALUES (OLD.id, OLD.price, NEW.price, NOW());  -- Notify admin if price decreased by more than 25% IF (NEW.price < OLD.price * 0.75) THEN PERFORM pg_notify('price_alerts', 'Product ' || OLD.name || ' price decreased by more than 25%'); END IF; END IF;"
+          "execute": "IF (OLD.price <> NEW.price) THEN INSERT INTO Log (message) VALUES ('Tabela Product atualizada BEFORE UPDATE'); RETURN NEW; END IF;"
         }
       ],
       "indexes": []
@@ -409,36 +447,6 @@
       "policies": [],
       "triggers": [],
       "indexes": []
-    },
-    {
-      "name": "Testing",
-      "fields": [
-        {
-          "name": "id",
-          "type": "SERIAL",
-          "attributes": [
-            "id"
-          ]
-        },
-        {
-          "name": "name",
-          "type": "VARCHAR",
-          "attributes": [],
-          "length": 150
-        },
-        {
-          "name": "createdAt",
-          "type": "TIMESTAMP",
-          "attributes": [
-            "default"
-          ],
-          "defaultValue": "now()"
-        }
-      ],
-      "relations": [],
-      "policies": [],
-      "triggers": [],
-      "indexes": []
     }
   ],
   "enums": [
@@ -475,7 +483,7 @@
   ],
   "roles": [
     {
-      "name": "logdUser",
+      "name": "userRole",
       "privileges": [
         {
           "privileges": [
