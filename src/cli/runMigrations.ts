@@ -9,12 +9,13 @@ import { MigrationGenerator } from '../migration/migrationGenerator';
 import { migrationToRawSql } from '../migration/previewHelpers';
 import { SchemaStateManager } from '../migration/schemaState';
 import { Schema } from '../parser/types';
+import os from 'os';
 
 // Load environment variables from .env file
 config();
 
 interface CliOptions {
-  command: 'up' | 'down' | 'status' | 'generate' | 'init-state';
+  command: 'up' | 'down' | 'status' | 'generate' | 'init-state' | 'create-custom';
   migrationsDir: string;
   connectionString?: string;
   schemaName?: string;
@@ -26,6 +27,7 @@ interface CliOptions {
   name?: string;
   outputPath?: string;
   forceFull?: boolean;
+  editor?: boolean;
 }
 
 /**
@@ -41,9 +43,9 @@ function toSnakeCase(str: string): string {
 
 function parseArgs(): CliOptions {
   const args = process.argv.slice(2);
-  const command = args[0] as 'up' | 'down' | 'status' | 'generate' | 'init-state';
+  const command = args[0] as 'up' | 'down' | 'status' | 'generate' | 'init-state' | 'create-custom';
   
-  if (!command || !['up', 'down', 'status', 'generate', 'init-state'].includes(command)) {
+  if (!command || !['up', 'down', 'status', 'generate', 'init-state', 'create-custom'].includes(command)) {
     printUsage();
     process.exit(1);
   }
@@ -79,6 +81,8 @@ function parseArgs(): CliOptions {
       options.outputPath = args[++i];
     } else if (arg === '--force-full') {
       options.forceFull = true;
+    } else if (arg === '--editor') {
+      options.editor = true;
     } else if (arg === '--help') {
       printUsage();
       process.exit(0);
@@ -93,11 +97,12 @@ function printUsage() {
 Usage: migrate <command> [options]
 
 Commands:
-  up          Run pending migrations
-  down        Rollback migrations
-  status      Show migration status
-  generate    Generate migration from schema
-  init-state  Initialize schema state without generating a migration
+  up             Run pending migrations
+  down           Rollback migrations
+  status         Show migration status
+  generate       Generate migration from schema
+  init-state     Initialize schema state without generating a migration
+  create-custom  Create a custom migration with your own SQL
 
 Options:
   --dir <path>              Migrations directory (default: ./migrations)
@@ -108,15 +113,112 @@ Options:
   --to-version <version>    Roll back to specific version (down only)
   --dry-run                 Show what would be executed without making changes
   --schema-path <path>      Path to schema file (generate/init-state only, default: schema/database.schema)
-  --name <n>                Migration name (generate only)
-  --output <path>           Output path (generate only, default: <migrations_dir>/<timestamp>_<n>.sql)
+  --name <n>                Migration name (generate/create-custom only)
+  --output <path>           Output path (generate/create-custom only, default: <migrations_dir>/<timestamp>_<n>.sql)
   --force-full              Force generating a full migration instead of a diff (generate only)
+  --editor                  Open in editor after creating the migration file (create-custom only)
   --help                    Show this help message
   `);
 }
 
+/**
+ * Creates a custom migration template with user-provided SQL
+ */
+async function createCustomMigrationTemplate(options: CliOptions): Promise<void> {
+  try {
+    // If no name was provided, prompt for it
+    let migrationName = options.name || '';
+    if (!migrationName) {
+      const answers = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'name',
+          message: 'Enter a name for this custom migration:',
+          default: 'custom_migration',
+          validate: (input) => {
+            return input.trim() !== '' ? true : 'Migration name cannot be empty';
+          }
+        }
+      ]);
+      migrationName = answers.name;
+    }
+    
+    // Convert name to snake_case for the filename
+    const snakeCaseName = toSnakeCase(migrationName);
+    
+    // Generate a unique version (timestamp) for the migration
+    const timestamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0];
+    const version = timestamp;
+    
+    // Determine output path
+    const filename = `${timestamp}_${snakeCaseName}.sql`;
+    const outputPath = options.outputPath || path.join(options.migrationsDir, filename);
+    
+    // Create the template content
+    const schemaName = options.schemaName || 'public';
+    const templateContent = 
+`-- Migration: ${migrationName}
+-- Version: ${version}
+-- Timestamp: ${new Date().toISOString()}
+
+-- Up Migration
+BEGIN;
+
+-- Add your custom up migration SQL here
+-- Example:
+-- CREATE TABLE ${schemaName}.your_table (
+--   id SERIAL PRIMARY KEY,
+--   name VARCHAR(255) NOT NULL,
+--   created_at TIMESTAMP NOT NULL DEFAULT NOW()
+-- );
+
+COMMIT;
+
+-- Down Migration
+BEGIN;
+
+-- Add your custom down migration SQL here
+-- This should revert the changes made in the up migration
+-- Example:
+-- DROP TABLE IF EXISTS ${schemaName}.your_table;
+
+COMMIT;
+`;
+    
+    // Ensure migrations directory exists
+    if (!fs.existsSync(options.migrationsDir)) {
+      fs.mkdirSync(options.migrationsDir, { recursive: true });
+    }
+    
+    // Write the migration file
+    fs.writeFileSync(outputPath, templateContent);
+    
+    console.log(`✅ Custom migration template created at ${outputPath}`);
+    console.log(`Migration version: ${version}`);
+    console.log('Edit this file to add your custom SQL migration.');
+    
+    // Open the file in editor if requested
+    if (options.editor) {
+      const { spawn } = require('child_process');
+      const editor = process.env.EDITOR || (os.platform() === 'win32' ? 'notepad' : 'nano');
+      
+      console.log(`Opening file in ${editor}...`);
+      spawn(editor, [outputPath], { stdio: 'inherit' });
+    }
+    
+  } catch (error) {
+    console.error('Error creating custom migration:', error);
+    process.exit(1);
+  }
+}
+
 async function main() {
   const options = parseArgs();
+  
+  if (options.command === 'create-custom') {
+    await createCustomMigrationTemplate(options);
+    return;
+  }
   
   if (options.command === 'init-state') {
     try {

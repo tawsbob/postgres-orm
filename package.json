@@ -56,6 +56,8 @@
     "migrate:generate": "ts-node src/cli/runMigrations.ts generate",
     "migrate:generate:full": "ts-node src/cli/runMigrations.ts generate --force-full",
     "migrate:init-state": "ts-node src/cli/runMigrations.ts init-state",
+    "migrate:create-custom": "ts-node src/cli/runMigrations.ts create-custom",
+    "migrate:create-custom:editor": "ts-node src/cli/runMigrations.ts create-custom --editor",
     "example:extension-comparison": "node examples/extension-comparison.js"
   },
   "dependencies": {
