@@ -119,14 +119,26 @@ export class TriggerOrchestrator {
     const triggerName = this.generateTriggerName(tableName, trigger);
     const functionName = `${triggerName}_fn`;
     
+    // Determine the correct RETURN value based on the trigger event
+    const returnStatement = trigger.event.startsWith('BEFORE') 
+      ? 'RETURN NEW;' 
+      : trigger.event.startsWith('AFTER DELETE') 
+        ? 'RETURN OLD;' 
+        : 'RETURN NEW;';
+    
+    // Check if execute code already includes a RETURN statement
+    const hasReturnStatement = trigger.execute.includes('RETURN ');
+    const executeFunctionBody = hasReturnStatement 
+      ? trigger.execute 
+      : `${trigger.execute}\n    ${returnStatement}`;
+    
     // Create a proper function for the trigger
     const sql = `
       -- Create or replace the trigger function
       CREATE OR REPLACE FUNCTION "${schemaName}"."${functionName}"()
       RETURNS TRIGGER AS $$
       BEGIN
-        ${trigger.execute}
-        RETURN NEW;
+        ${executeFunctionBody}
       END;
       $$ LANGUAGE plpgsql;
 
@@ -171,14 +183,26 @@ export class TriggerOrchestrator {
       DROP FUNCTION IF EXISTS "${schemaName}"."${functionName}"();
     `;
 
+    // Determine the correct RETURN value based on the trigger event
+    const returnStatement = trigger.event.startsWith('BEFORE') 
+      ? 'RETURN NEW;' 
+      : trigger.event.startsWith('AFTER DELETE') 
+        ? 'RETURN OLD;' 
+        : 'RETURN NEW;';
+
+    // Check if execute code already includes a RETURN statement
+    const hasReturnStatement = trigger.execute.includes('RETURN ');
+    const executeFunctionBody = hasReturnStatement 
+      ? trigger.execute 
+      : `${trigger.execute}\n    ${returnStatement}`;
+
     // Create function and trigger for rollback
     const rollbackSql = `
       -- Create or replace the trigger function
       CREATE OR REPLACE FUNCTION "${schemaName}"."${functionName}"()
       RETURNS TRIGGER AS $$
       BEGIN
-        ${trigger.execute}
-        RETURN NEW;
+        ${executeFunctionBody}
       END;
       $$ LANGUAGE plpgsql;
 

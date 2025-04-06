@@ -1,6 +1,6 @@
--- Migration: init
--- Version: 20250406031254
--- Timestamp: 2025-04-06T03:12:54.086Z
+-- Migration: initial
+-- Version: 20250406032048
+-- Timestamp: 2025-04-06T03:20:48.273Z
 
 -- Up Migration
 BEGIN;
@@ -190,6 +190,55 @@ END $$;
 -- role: adminRole_grant_0
 GRANT SELECT, INSERT, UPDATE, DELETE ON "public"."User" TO "adminRole";
 
+-- trigger: User_before_update_for_each_row_trigger
+-- Create or replace the trigger function
+      CREATE OR REPLACE FUNCTION "public"."User_before_update_for_each_row_trigger_fn"()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        IF (OLD.balance <> NEW.balance) THEN RAISE EXCEPTION 'Balance cannot be updated directly'; END IF;
+    RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      -- Create the trigger
+      CREATE TRIGGER User_before_update_for_each_row_trigger
+      BEFORE UPDATE
+      FOR EACH ROW
+      ON "public"."User"
+      EXECUTE FUNCTION "public"."User_before_update_for_each_row_trigger_fn"();
+
+-- trigger: Product_after_update_for_each_row_trigger
+-- Create or replace the trigger function
+      CREATE OR REPLACE FUNCTION "public"."Product_after_update_for_each_row_trigger_fn"()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        IF (OLD.stock <> NEW.stock) THEN INSERT INTO Log (message) VALUES ('Tabela Product atualizada AFTER UPDATE'); RETURN NEW; END IF;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      -- Create the trigger
+      CREATE TRIGGER Product_after_update_for_each_row_trigger
+      AFTER UPDATE
+      FOR EACH ROW
+      ON "public"."Product"
+      EXECUTE FUNCTION "public"."Product_after_update_for_each_row_trigger_fn"();
+
+-- trigger: Product_before_update_for_each_row_trigger
+-- Create or replace the trigger function
+      CREATE OR REPLACE FUNCTION "public"."Product_before_update_for_each_row_trigger_fn"()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        IF (OLD.price <> NEW.price) THEN INSERT INTO Log (message) VALUES ('Tabela Product atualizada BEFORE UPDATE'); RETURN NEW; END IF;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      -- Create the trigger
+      CREATE TRIGGER Product_before_update_for_each_row_trigger
+      BEFORE UPDATE
+      FOR EACH ROW
+      ON "public"."Product"
+      EXECUTE FUNCTION "public"."Product_before_update_for_each_row_trigger_fn"();
+
 COMMIT;
 
 -- Down Migration
@@ -209,6 +258,27 @@ DROP EXTENSION IF EXISTS "postgis";
 
 -- extension: pgcrypto
 DROP EXTENSION IF EXISTS "pgcrypto";
+
+-- trigger: Product_before_update_for_each_row_trigger
+-- Drop the trigger
+      DROP TRIGGER IF EXISTS Product_before_update_for_each_row_trigger ON "public"."Product";
+      
+      -- Drop the function
+      DROP FUNCTION IF EXISTS "public"."Product_before_update_for_each_row_trigger_fn"();
+
+-- trigger: Product_after_update_for_each_row_trigger
+-- Drop the trigger
+      DROP TRIGGER IF EXISTS Product_after_update_for_each_row_trigger ON "public"."Product";
+      
+      -- Drop the function
+      DROP FUNCTION IF EXISTS "public"."Product_after_update_for_each_row_trigger_fn"();
+
+-- trigger: User_before_update_for_each_row_trigger
+-- Drop the trigger
+      DROP TRIGGER IF EXISTS User_before_update_for_each_row_trigger ON "public"."User";
+      
+      -- Drop the function
+      DROP FUNCTION IF EXISTS "public"."User_before_update_for_each_row_trigger_fn"();
 
 -- role: adminRole_grant_0
 

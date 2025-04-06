@@ -434,9 +434,19 @@ export class MigrationGenerator {
 
     // Handle triggers
     if (includeTriggers) {
+      // For initial migration, we need to create an empty schema to compare against
+      // so that all triggers are treated as new additions
+      const emptySchema: Schema = {
+        ...schema,
+        models: schema.models.map(model => ({
+          ...model,
+          triggers: [] // Clear triggers to ensure they're all treated as new
+        }))
+      };
+      
       const triggerSteps = this.triggerOrchestrator.generateTriggerSteps(
-        schema,
-        schema,
+        emptySchema,  // fromSchema (no triggers)
+        schema,       // toSchema (with triggers)
         { schemaName }
       );
       steps.push(...triggerSteps);
