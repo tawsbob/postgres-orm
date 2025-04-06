@@ -181,12 +181,20 @@ export default class SchemaParserV1 {
         // Parse relation options
         const fieldsMatch = options.match(/fields:\s*\[([^\]]+)\]/);
         const referencesMatch = options.match(/references:\s*\[([^\]]+)\]/);
+        const onDeleteMatch = options.match(/onDelete:\s*["']?([^,"'}\s]+(?:\s+[^,"'}\s]+)*)["']?/);
+        const onUpdateMatch = options.match(/onUpdate:\s*["']?([^,"'}\s]+(?:\s+[^,"'}\s]+)*)["']?/);
 
         if (fieldsMatch) {
           relation.fields = fieldsMatch[1].split(',').map(f => f.trim());
         }
         if (referencesMatch) {
           relation.references = referencesMatch[1].split(',').map(r => r.trim());
+        }
+        if (onDeleteMatch) {
+          relation.onDelete = onDeleteMatch[1];
+        }
+        if (onUpdateMatch) {
+          relation.onUpdate = onUpdateMatch[1];
         }
 
         return relation;

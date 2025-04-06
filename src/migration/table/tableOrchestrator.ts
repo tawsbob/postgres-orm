@@ -239,7 +239,9 @@ export class TableOrchestrator {
         fromRel.type !== toRel.type ||
         fromRel.model !== toRel.model ||
         JSON.stringify(fromRel.fields) !== JSON.stringify(toRel.fields) ||
-        JSON.stringify(fromRel.references) !== JSON.stringify(toRel.references)
+        JSON.stringify(fromRel.references) !== JSON.stringify(toRel.references) ||
+        fromRel.onDelete !== toRel.onDelete ||
+        fromRel.onUpdate !== toRel.onUpdate
       ) {
         return true;
       }

@@ -76,7 +76,7 @@ model Profile {
   bio           TEXT
   avatar        VARCHAR(255)
   location      POINT
-  user          User            @relation("UserProfile", fields: [userId], references: [id])
+  user          User            @relation("UserProfile", fields: [userId], references: [id] onDelete: "CASCADE", onUpdate: "SET NULL")
 }
 
 model Order {

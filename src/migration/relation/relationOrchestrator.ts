@@ -157,6 +157,15 @@ export class RelationOrchestrator {
       return true;
     }
     
+    // Compare onDelete and onUpdate actions
+    if (fromRelation.onDelete !== toRelation.onDelete) {
+      return true;
+    }
+    
+    if (fromRelation.onUpdate !== toRelation.onUpdate) {
+      return true;
+    }
+    
     return false;
   }
   

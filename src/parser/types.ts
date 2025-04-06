@@ -38,6 +38,8 @@ export interface Relation {
   model: string;
   fields?: string[];
   references?: string[];
+  onDelete?: string;
+  onUpdate?: string;
 }
 
 export interface Index {

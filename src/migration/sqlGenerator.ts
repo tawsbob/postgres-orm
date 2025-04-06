@@ -148,11 +148,17 @@ END $$;`;
     const constraintName = `fk_${model.name}_${relation.name}`;
     const fields = relation.fields.map(f => `"${f}"`).join(', ');
     const references = relation.references.map(r => `"${r}"`).join(', ');
+    
+    // Use RESTRICT as default action if not specified
+    const onDelete = relation.onDelete ? relation.onDelete : 'RESTRICT';
+    const onUpdate = relation.onUpdate ? relation.onUpdate : 'RESTRICT';
 
     return `ALTER TABLE "${schemaName}"."${model.name}"\n` +
            `ADD CONSTRAINT "${constraintName}"\n` +
            `FOREIGN KEY (${fields})\n` +
-           `REFERENCES "${schemaName}"."${relation.model}" (${references});`;
+           `REFERENCES "${schemaName}"."${relation.model}" (${references})\n` +
+           `ON DELETE ${onDelete}\n` +
+           `ON UPDATE ${onUpdate};`;
   }
 
   static generateDropForeignKeySQL(

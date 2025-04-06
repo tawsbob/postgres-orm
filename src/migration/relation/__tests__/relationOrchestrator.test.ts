@@ -21,13 +21,17 @@ describe('RelationOrchestrator', () => {
     type: 'one-to-one' | 'one-to-many' | 'many-to-many',
     targetModel: string,
     fields?: string[],
-    references?: string[]
+    references?: string[],
+    onDelete?: string,
+    onUpdate?: string
   ): Relation => ({
     name,
     type,
     model: targetModel,
     fields,
-    references
+    references,
+    onDelete,
+    onUpdate
   });
 
   describe('compareRelations', () => {
@@ -183,6 +187,60 @@ describe('RelationOrchestrator', () => {
       expect(result.updated[0].relation.name).toBe('posts');
       expect(result.updated[0].relation.references).toEqual(['authorId']);
       expect(result.updated[0].previousRelation.references).toEqual(['userId']);
+    });
+
+    it('should detect updated onDelete action', () => {
+      // Arrange
+      const fromModels: Model[] = [
+        createTestModel('User', [
+          createTestRelation('posts', 'one-to-many', 'Post', ['id'], ['userId'], 'RESTRICT')
+        ])
+      ];
+      
+      const toModels: Model[] = [
+        createTestModel('User', [
+          createTestRelation('posts', 'one-to-many', 'Post', ['id'], ['userId'], 'CASCADE')
+        ])
+      ];
+
+      // Act
+      const result = orchestrator.compareRelations(fromModels, toModels);
+
+      // Assert
+      expect(result.added.length).toBe(0);
+      expect(result.removed.length).toBe(0);
+      expect(result.updated.length).toBe(1);
+      expect(result.updated[0].model.name).toBe('User');
+      expect(result.updated[0].relation.name).toBe('posts');
+      expect(result.updated[0].relation.onDelete).toBe('CASCADE');
+      expect(result.updated[0].previousRelation.onDelete).toBe('RESTRICT');
+    });
+
+    it('should detect updated onUpdate action', () => {
+      // Arrange
+      const fromModels: Model[] = [
+        createTestModel('User', [
+          createTestRelation('posts', 'one-to-many', 'Post', ['id'], ['userId'], 'RESTRICT', 'RESTRICT')
+        ])
+      ];
+      
+      const toModels: Model[] = [
+        createTestModel('User', [
+          createTestRelation('posts', 'one-to-many', 'Post', ['id'], ['userId'], 'RESTRICT', 'CASCADE')
+        ])
+      ];
+
+      // Act
+      const result = orchestrator.compareRelations(fromModels, toModels);
+
+      // Assert
+      expect(result.added.length).toBe(0);
+      expect(result.removed.length).toBe(0);
+      expect(result.updated.length).toBe(1);
+      expect(result.updated[0].model.name).toBe('User');
+      expect(result.updated[0].relation.name).toBe('posts');
+      expect(result.updated[0].relation.onUpdate).toBe('CASCADE');
+      expect(result.updated[0].previousRelation.onUpdate).toBe('RESTRICT');
     });
 
     it('should handle relations in new models', () => {
