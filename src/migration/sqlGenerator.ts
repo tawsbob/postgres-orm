@@ -280,13 +280,23 @@ END $$;`);
       ? policy.for.map(action => action.toUpperCase()).join(', ')
       : 'ALL';
     
+    // Clean the using expression to remove any trailing semicolons
+    const usingClause = policy.using.trim().endsWith(';') 
+      ? policy.using.trim().slice(0, -1) 
+      : policy.using.trim();
+    
     let sql = `CREATE POLICY "${policy.name}" ON "${schemaName}"."${model.name}"
     FOR ${forActions}
     TO ${policy.to}
-    USING (${policy.using})`;
+    USING (${usingClause})`;
     
     if (policy.check) {
-      sql += `\n    WITH CHECK (${policy.check})`;
+      // Clean check expression too to be consistent
+      const checkClause = policy.check.trim().endsWith(';')
+        ? policy.check.trim().slice(0, -1)
+        : policy.check.trim();
+      
+      sql += `\n    WITH CHECK (${checkClause})`;
     }
     
     return sql + ';';

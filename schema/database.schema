@@ -37,7 +37,7 @@ model User {
    @@policy("userIsolation", {
     for: ["select", "update"],
     to: "userRole",
-    using: "true"
+    using: "id = (SELECT current_setting('app.current_user_id')::uuid)"
   })
 
   @@policy("adminAccess", {
