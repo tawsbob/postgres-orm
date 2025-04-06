@@ -1,19 +1,6 @@
-# PostgreSQL ORM
+# Postgres ORM Migration CLI
 
-A lightweight PostgreSQL ORM with schema parsing capabilities, inspired by Prisma.
-
-## Features
-
-- Schema parsing with support for:
-  - PostgreSQL native types (UUID, VARCHAR, TEXT, etc.)
-  - Enums
-  - Relationships (one-to-one, one-to-many, many-to-many)
-  - Field attributes (id, unique, default)
-  - JSON fields
-  - Array types
-  - Custom types
-- Migration generation
-- Migration preview functionality
+A powerful CLI tool for managing PostgreSQL database migrations with schema parsing capabilities.
 
 ## Installation
 
@@ -21,166 +8,167 @@ A lightweight PostgreSQL ORM with schema parsing capabilities, inspired by Prism
 npm install postgres-orm
 ```
 
-## Usage
+## Configuration
 
-1. Create a schema file (e.g., `schema/database.schema`):
+The CLI looks for environment variables in a `.env` file:
 
-```schema
-enum UserRole {
-  ADMIN
-  USER
-  GUEST
-}
-
-model User {
-  id        UUID      @id @default(uuid())
-  email     VARCHAR(255) @unique
-  name      VARCHAR(100)
-  role      UserRole  @default(USER)
-  profile   Profile?  @relation("UserProfile")
-  orders    Order[]
-}
+```
+DATABASE_URL=postgresql://user:password@localhost:5432/database
+MIGRATIONS_DIR=./migrations
 ```
 
-2. Parse the schema:
+## CLI Commands
 
-```typescript
-import { SchemaParser } from 'postgres-orm';
-
-const parser = new SchemaParser();
-const schema = parser.parseSchema('schema/database.schema');
-
-// Access parsed schema
-console.log(schema.models);
-console.log(schema.enums);
-```
-
-## Schema Syntax
-
-### Models
-
-Models are defined using the `model` keyword:
-
-```schema
-model ModelName {
-  fieldName FieldType @attribute
-}
-```
-
-### Fields
-
-Fields can have the following attributes:
-- `@id`: Primary key
-- `@unique`: Unique constraint
-- `@default(value)`: Default value
-
-### Relationships
-
-Relationships are defined using the `@relation` attribute:
-
-```schema
-model User {
-  profile Profile? @relation("UserProfile")
-}
-
-model Profile {
-  user User @relation("UserProfile", fields: [userId], references: [id])
-}
-```
-
-### Enums
-
-Enums are defined using the `enum` keyword:
-
-```schema
-enum EnumName {
-  VALUE1
-  VALUE2
-  VALUE3
-}
-```
-
-## Migration Previews
-
-You can preview the SQL migrations that would be generated from your schema without actually writing them to disk:
+### Basic Usage
 
 ```bash
-# Default preview (pretty-printed format)
-npm run preview:migration
-
-# JSON format
-npm run preview:migration:json
-
-# Raw SQL format
-npm run preview:migration:sql
-
-# Output to file
-npm run preview:migration:file
-
-# View all options
-npm run preview:migration:help
+npx migrate <command> [options]
 ```
 
-### Custom Preview Options
-
-The migration preview tool supports various command-line options:
+Or using npm scripts:
 
 ```bash
-# Specify a custom schema file
-npm run preview:migration -- --schema schema/custom-schema.schema
-
-# Specify an output file
-npm run preview:migration -- --output custom-output.sql
-
-# Change the output format
-npm run preview:migration -- --format [pretty|json|raw]
-
-# Exclude specific parts from the preview
-npm run preview:migration -- --no-down --no-stats
-npm run preview:migration -- --no-extensions --no-roles
+npm run migrate:<command> -- [options]
 ```
 
-### Programmatic Usage
+### Available Commands
 
-You can also use the preview functionality programmatically:
+| Command | Description |
+|---------|-------------|
+| `up` | Run pending migrations |
+| `down` | Rollback migrations |
+| `status` | Show migration status |
+| `generate` | Generate migration from schema |
+| `generate:full` | Generate a full migration rather than a diff |
+| `init-state` | Initialize schema state without generating a migration |
+| `create-custom` | Create a custom migration with your own SQL |
 
-```typescript
-import { previewMigration, MigrationPreviewOptions } from 'postgres-orm';
+### Common Options
 
-const options: MigrationPreviewOptions = {
-  format: 'json',
-  showDownMigration: false,
-  includeExtensions: true,
-  // ... other options
-};
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--dir <path>` | Migrations directory | `./migrations` |
+| `--connection-string <url>` | Database connection string | `env.DATABASE_URL` |
+| `--schema <name>` | Database schema | `public` |
+| `--table <name>` | Migrations table name | `schema_migrations` |
+| `--help` | Show help message | |
 
-previewMigration('schema/database.schema', options, 'output.json');
+### Migration Examples
+
+#### Run pending migrations
+
+```bash
+npm run migrate:up
 ```
 
-## Development
+#### Rollback the last migration
 
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Run tests:
-   ```bash
-   npm test
-   ```
-4. Build the project:
-   ```bash
-   npm run build
-   ```
-5. Preview schema:
-   ```bash
-   npm run preview
-   ```
-6. Preview migrations:
-   ```bash
-   npm run preview:migration
-   ```
+```bash
+npm run migrate:down -- --steps 1
+```
 
-## License
+#### Show migration status
 
-MIT
+```bash
+npm run migrate:status
+```
+
+#### Generate a migration from schema
+
+```bash
+npm run migrate:generate -- --name "add users table"
+```
+
+#### Create a custom migration
+
+```bash
+npm run migrate:create-custom -- --name "fix data issues"
+```
+
+#### Create a custom migration and open in editor
+
+```bash
+npm run migrate:create-custom:editor -- --name "add stored procedure"
+```
+
+## Custom Migrations
+
+Custom migrations allow you to write raw SQL directly rather than generating it from a schema.
+
+### Creating a Custom Migration
+
+```bash
+npm run migrate:create-custom -- --name "my custom migration"
+```
+
+This will generate a template file with the following structure:
+
+```sql
+-- Migration: my custom migration
+-- Version: 20230101120000
+-- Timestamp: 2023-01-01T12:00:00.000Z
+
+-- Up Migration
+BEGIN;
+
+-- Add your custom up migration SQL here
+-- Example:
+-- CREATE TABLE public.your_table (
+--   id SERIAL PRIMARY KEY,
+--   name VARCHAR(255) NOT NULL,
+--   created_at TIMESTAMP NOT NULL DEFAULT NOW()
+-- );
+
+COMMIT;
+
+-- Down Migration
+BEGIN;
+
+-- Add your custom down migration SQL here
+-- This should revert the changes made in the up migration
+-- Example:
+-- DROP TABLE IF EXISTS public.your_table;
+
+COMMIT;
+```
+
+Edit this file to add your custom SQL for both the up migration (to apply changes) and down migration (to roll back changes).
+
+## Schema-based Migrations
+
+The ORM can also generate migrations by comparing your schema definition to the current state.
+
+### Initializing Schema State
+
+Before generating differential migrations, initialize the schema state:
+
+```bash
+npm run migrate:init-state -- --schema-path schema/database.schema
+```
+
+### Generating a Migration from Schema
+
+After updating your schema definition, generate a migration:
+
+```bash
+npm run migrate:generate -- --name "update schema"
+```
+
+This will generate a migration containing only the changes between your current schema and the previous state.
+
+### Options for Schema-based Migrations
+
+| Option | Description |
+|--------|-------------|
+| `--schema-path <path>` | Path to schema file | 
+| `--force-full` | Generate a full migration instead of a diff |
+| `--name <name>` | Migration name |
+| `--output <path>` | Custom output path for the migration file |
+
+## Best Practices
+
+1. **Always include down migrations**: Make sure to implement the down migration to roll back changes.
+2. **Use transactions**: All migrations should be wrapped in transactions (the template does this for you).
+3. **Be specific with schema names**: Always qualify table names with schema names.
+4. **Test migrations**: Test migrations in a staging environment before production.
+5. **Keep migrations small**: Multiple small migrations are better than one large migration.
