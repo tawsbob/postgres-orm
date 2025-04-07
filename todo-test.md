@@ -11,15 +11,14 @@ Enums
     - [x] Test removal of enum types
 
 Tables/Models
-    - [ ] Test creation of all models on the schema
-    - [ ] Test table renaming
-    - [ ] Test dropping tables
+    - [x] Test creation of all models on the schema
+    - [x] Test table renaming
+    - [x] Test dropping tables
 Fields
-    - [ ] Test all PostgreSQL data types (UUID, VARCHAR, TEXT, SMALLINT, INTEGER, BOOLEAN, TIMESTAMP, POINT, DECIMAL, JSONB, TEXT[], SERIAL)
-    - [ ] Test default values (gen_random_uuid(), now(), literals)
-    - [ ] Test constraints (unique, nullable/non-nullable)
-    - [ ] Test field addition, modification, and removal
-    - [ ] Test changing field types
+    - [x] Test all PostgreSQL data types (UUID, VARCHAR, TEXT, SMALLINT, INTEGER, BOOLEAN, TIMESTAMP, POINT, DECIMAL, JSONB, TEXT[], SERIAL)
+    - [x] Test default values (gen_random_uuid(), now(), literals)
+    - [x] Test constraints (unique, nullable/non-nullable)
+    - [x] Test field addition, modification, and removal 
 Row-Level Security
     - [ ] Test enabling RLS on tables
     - [ ] Test force setting for RLS
