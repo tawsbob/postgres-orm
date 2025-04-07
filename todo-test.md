@@ -6,9 +6,9 @@ Extensions
     - [x] Test removal of extensions
 
 Enums
-    - [ ] Test creation
-    - [ ] Test modifications (adding new values)
-    - [ ] Test removal of enum types
+    - [x] Test creation
+    - [x] Test modifications (adding new values)
+    - [x] Test removal of enum types
 
 Tables/Models
     - [ ] Test creation of all models on the schema
