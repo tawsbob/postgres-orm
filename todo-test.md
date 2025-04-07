@@ -20,9 +20,9 @@ Fields
     - [x] Test constraints (unique, nullable/non-nullable)
     - [x] Test field addition, modification, and removal 
 Row-Level Security
-    - [ ] Test enabling RLS on tables
-    - [ ] Test force setting for RLS
-    - [ ] Test disabling RLS
+    - [x] Test enabling RLS on tables
+    - [x] Test force setting for RLS
+    - [x] Test disabling RLS
 Policies
     - [ ] Test policy creation with specific privileges
     - [ ] Test policy targeting specific roles
