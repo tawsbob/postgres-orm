@@ -42,11 +42,11 @@ This document outlines the comprehensive test coverage required for PostgreSQL m
 - [x] Test role modification and removal
 
 ### Relations
-- [ ] Test one-to-one relations (User-Profile)
-- [ ] Test one-to-many relations (User-Order, Order-ProductOrder)
-- [ ] Test many-to-many relations (Product-Order via ProductOrder)
-- [ ] Test onDelete/onUpdate behaviors (CASCADE, SET NULL)
-- [ ] Test relation modification
+- [x] Test one-to-one relations (User-Profile)
+- [x] Test one-to-many relations (User-Order, Order-ProductOrder)
+- [x] Test many-to-many relations (Product-Order via ProductOrder)
+- [x] Test onDelete/onUpdate behaviors (CASCADE, SET NULL)
+- [x] Test relation modification
 
 ### Triggers
 - [ ] Test BEFORE/AFTER triggers on UPDATE
