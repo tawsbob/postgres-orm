@@ -41,6 +41,16 @@ function toSnakeCase(str: string): string {
     .replace(/[^a-z0-9_]/g, '');
 }
 
+/**
+ * Formats a timestamp for use as a migration version
+ * Ensures the version format matches what MigrationFileSystem expects
+ */
+function formatMigrationVersion(timestamp: string): string {
+  // MigrationFileSystem expects version to be numeric
+  // Remove any non-numeric characters from the timestamp
+  return timestamp.replace(/\D/g, '');
+}
+
 function parseArgs(): CliOptions {
   const args = process.argv.slice(2);
   const command = args[0] as 'up' | 'down' | 'status' | 'generate' | 'init-state' | 'create-custom';
@@ -287,26 +297,38 @@ async function main() {
       // Use the provided name for the migration description
       migration.description = migrationName;
       
+      // Determine output paths
+      const timestamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0];
+      const version = formatMigrationVersion(timestamp);
+      
+      // Update the migration version to ensure it's properly formatted
+      migration.version = version;
+      
       // Convert to SQL
       const sql = migrationToRawSql(migration);
       
-      // Determine output path
-      const timestamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0];
-      const filename = `${timestamp}_${snakeCaseName}.sql`;
+      const filename = `${version}_${snakeCaseName}.sql`;
       const outputPath = options.outputPath || path.join(options.migrationsDir, filename);
+      
+      // Generate JSON version of the migration
+      const jsonContent = JSON.stringify(migration, null, 2);
+      const jsonFilename = `${version}_${snakeCaseName}.json`;
+      const jsonOutputPath = path.join(options.migrationsDir, jsonFilename);
       
       // Ensure migrations directory exists
       if (!fs.existsSync(options.migrationsDir)) {
         fs.mkdirSync(options.migrationsDir, { recursive: true });
       }
       
-      // Write the migration file
+      // Write the migration files
       fs.writeFileSync(outputPath, sql);
+      fs.writeFileSync(jsonOutputPath, jsonContent);
       
       // Save the current schema state
       stateManager.saveSchemaState(schema);
       
       console.log(`✅ Migration generated successfully at ${outputPath}`);
+      console.log(`✅ JSON migration saved at ${jsonOutputPath}`);
       console.log(`Migration version: ${migration.version}`);
       console.log(`Migration contains ${migration.steps.length} steps`);
       console.log(`Migration type: ${options.forceFull || !previousSchema ? 'Full schema' : 'Differential'}`);
