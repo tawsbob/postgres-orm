@@ -29,9 +29,9 @@ Policies
     - [x] Test complex USING expressions with subqueries
     - [x] Test policy modification and removal
 Roles
-    - [ ] Test role creation (userRole, adminRole)
-    - [ ] Test privilege assignment
-    - [ ] Test role modification and removal
+    - [x] Test role creation (userRole, adminRole)
+    - [x] Test privilege assignment
+    - [x] Test role modification and removal
 Relations
     - [ ] Test one-to-one relations (User-Profile)
     - [ ] Test one-to-many relations (User-Order, Order-ProductOrder)
