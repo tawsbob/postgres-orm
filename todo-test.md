@@ -24,10 +24,10 @@ Row-Level Security
     - [x] Test force setting for RLS
     - [x] Test disabling RLS
 Policies
-    - [ ] Test policy creation with specific privileges
-    - [ ] Test policy targeting specific roles
-    - [ ] Test complex USING expressions with subqueries
-    - [ ] Test policy modification and removal
+    - [x] Test policy creation with specific privileges
+    - [x] Test policy targeting specific roles
+    - [x] Test complex USING expressions with subqueries
+    - [x] Test policy modification and removal
 Roles
     - [ ] Test role creation (userRole, adminRole)
     - [ ] Test privilege assignment
