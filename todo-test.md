@@ -46,13 +46,13 @@ This document outlines the comprehensive test coverage required for PostgreSQL m
 - [x] Test one-to-many relations (User-Order, Order-ProductOrder)
 - [x] Test many-to-many relations (Product-Order via ProductOrder)
 - [x] Test onDelete/onUpdate behaviors (CASCADE, SET NULL)
-- [x] Test relation modification
+- [x] Test relation modification and removal
 
 ### Triggers
-- [ ] Test BEFORE/AFTER triggers on UPDATE
-- [ ] Test trigger PL/pgSQL code execution
-- [ ] Test FOR EACH ROW triggers
-- [ ] Test trigger modification and removal
+- [x] Test BEFORE/AFTER triggers on UPDATE
+- [x] Test trigger PL/pgSQL code execution
+- [x] Test FOR EACH ROW triggers
+- [x] Test trigger modification and removal
 
 ### Indexes
 - [ ] Test btree index creation
