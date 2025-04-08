@@ -55,12 +55,12 @@ This document outlines the comprehensive test coverage required for PostgreSQL m
 - [x] Test trigger modification and removal
 
 ### Indexes
-- [ ] Test btree index creation
-- [ ] Test composite indexes (multiple columns)
-- [ ] Test conditional indexes (WHERE clauses)
-- [ ] Test named indexes
-- [ ] Test unique indexes
-- [ ] Test index modification and removal
+- [x] Test btree index creation
+- [x] Test composite indexes (multiple columns)
+- [x] Test conditional indexes (WHERE clauses)
+- [x] Test named indexes
+- [x] Test unique indexes
+- [x] Test index modification and removal
 
 ### Migration Sequences
 - [ ] Test up/down migrations
