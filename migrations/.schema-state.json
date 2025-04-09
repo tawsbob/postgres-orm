@@ -1,5 +1,277 @@
 {
-  "models": [],
+  "models": [
+    {
+      "name": "User",
+      "fields": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "attributes": [
+            "id",
+            "default"
+          ],
+          "defaultValue": "gen_random_uuid()",
+          "nullable": false
+        },
+        {
+          "name": "email",
+          "type": "TEXT",
+          "attributes": [
+            "unique"
+          ],
+          "nullable": false
+        },
+        {
+          "name": "username",
+          "type": "VARCHAR",
+          "attributes": [
+            "unique"
+          ],
+          "length": 50,
+          "nullable": false
+        },
+        {
+          "name": "password",
+          "type": "TEXT",
+          "attributes": [],
+          "nullable": false
+        },
+        {
+          "name": "role",
+          "type": "UserRole",
+          "attributes": [
+            "default"
+          ],
+          "defaultValue": "USER",
+          "nullable": false
+        },
+        {
+          "name": "createdAt",
+          "type": "TIMESTAMP",
+          "attributes": [
+            "default"
+          ],
+          "defaultValue": "now()",
+          "nullable": false
+        },
+        {
+          "name": "updatedAt",
+          "type": "TIMESTAMP",
+          "attributes": [
+            "updatedAt"
+          ],
+          "nullable": false
+        }
+      ],
+      "relations": [],
+      "policies": [],
+      "triggers": [],
+      "indexes": []
+    },
+    {
+      "name": "Product",
+      "fields": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "attributes": [
+            "id",
+            "default"
+          ],
+          "defaultValue": "gen_random_uuid()",
+          "nullable": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "attributes": [
+            "unique"
+          ],
+          "nullable": false
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "attributes": [],
+          "nullable": false
+        },
+        {
+          "name": "price",
+          "type": "DECIMAL(10, 2)",
+          "attributes": [],
+          "nullable": false
+        },
+        {
+          "name": "stock",
+          "type": "INTEGER",
+          "attributes": [
+            "default"
+          ],
+          "defaultValue": "0",
+          "nullable": false
+        },
+        {
+          "name": "isActive",
+          "type": "BOOLEAN",
+          "attributes": [
+            "default"
+          ],
+          "defaultValue": "true",
+          "nullable": false
+        },
+        {
+          "name": "category",
+          "type": "TEXT[]",
+          "attributes": [],
+          "nullable": false
+        },
+        {
+          "name": "metadata",
+          "type": "JSONB",
+          "attributes": [],
+          "nullable": false
+        },
+        {
+          "name": "createdAt",
+          "type": "TIMESTAMP",
+          "attributes": [
+            "default"
+          ],
+          "defaultValue": "now()",
+          "nullable": false
+        },
+        {
+          "name": "updatedAt",
+          "type": "TIMESTAMP",
+          "attributes": [
+            "updatedAt"
+          ],
+          "nullable": false
+        }
+      ],
+      "relations": [],
+      "policies": [],
+      "triggers": [],
+      "indexes": []
+    },
+    {
+      "name": "Order",
+      "fields": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "attributes": [
+            "id",
+            "default"
+          ],
+          "defaultValue": "gen_random_uuid()",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "OrderStatus",
+          "attributes": [
+            "default"
+          ],
+          "defaultValue": "PENDING",
+          "nullable": false
+        },
+        {
+          "name": "total",
+          "type": "DECIMAL(10, 2)",
+          "attributes": [],
+          "nullable": false
+        },
+        {
+          "name": "shippingAddress",
+          "type": "JSONB",
+          "attributes": [],
+          "nullable": false
+        },
+        {
+          "name": "createdAt",
+          "type": "TIMESTAMP",
+          "attributes": [
+            "default"
+          ],
+          "defaultValue": "now()",
+          "nullable": false
+        },
+        {
+          "name": "updatedAt",
+          "type": "TIMESTAMP",
+          "attributes": [
+            "updatedAt"
+          ],
+          "nullable": false
+        }
+      ],
+      "relations": [
+        {
+          "name": "userId",
+          "model": "UUID",
+          "type": "one-to-one",
+          "onDelete": "CASCADE"
+        }
+      ],
+      "policies": [],
+      "triggers": [],
+      "indexes": []
+    },
+    {
+      "name": "ProductOrder",
+      "fields": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "attributes": [
+            "id",
+            "default"
+          ],
+          "defaultValue": "gen_random_uuid()",
+          "nullable": false
+        },
+        {
+          "name": "quantity",
+          "type": "INTEGER",
+          "attributes": [],
+          "nullable": false
+        },
+        {
+          "name": "unitPrice",
+          "type": "DECIMAL(10, 2)",
+          "attributes": [],
+          "nullable": false
+        },
+        {
+          "name": "createdAt",
+          "type": "TIMESTAMP",
+          "attributes": [
+            "default"
+          ],
+          "defaultValue": "now()",
+          "nullable": false
+        }
+      ],
+      "relations": [
+        {
+          "name": "productId",
+          "model": "UUID",
+          "type": "one-to-one",
+          "onDelete": "CASCADE"
+        },
+        {
+          "name": "orderId",
+          "model": "UUID",
+          "type": "one-to-one",
+          "onDelete": "CASCADE"
+        }
+      ],
+      "policies": [],
+      "triggers": [],
+      "indexes": []
+    }
+  ],
   "enums": [
     {
       "name": "UserRole",
@@ -9,6 +281,18 @@
         "PUBLIC",
         "GUEST",
         "MODERATOR"
+      ]
+    },
+    {
+      "name": "OrderStatus",
+      "values": [
+        "PENDING",
+        "PROCESSING",
+        "SHIPPED",
+        "DELIVERED",
+        "CANCELLED",
+        "REFUNDED",
+        "ON_HOLD"
       ]
     }
   ],
