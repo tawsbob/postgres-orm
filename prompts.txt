@@ -1,0 +1,15 @@
+Based on the schema, I want you to start the database.schema file from scratch, and test the migrations for each test case defined in the todo-test.md file in the database.
+
+Do one migration at a time, name the migration the same as the test case (example extensions_test_installation_of_pgcrypto), then run migrate:up and migrate:down to test if it is working properly.
+
+For each test, keep the previous model and add more cases because we want to see how the interaction between the changes will work.
+
+The final goal is to test if the migrations are ready to run on the real database.
+
+We are working on an ORM, so you need to modify the code that generates this migration. Do not modify the migration directly.
+
+Migrations must always follow the sequence, and if one goes wrong, after correcting the code that generates it, you must delete it and generate a new one in its place to continue testing.
+
+Before correcting anything, detect the error and explain it to me in detail so that we can agree together on how to solve it.
+
+after each successful migration commit it and go to the next test.

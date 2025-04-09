@@ -1,0 +1,17 @@
+{
+  "models": [],
+  "enums": [],
+  "extensions": [
+    {
+      "name": "pgcrypto",
+      "version": "1.3"
+    },
+    {
+      "name": "postgis"
+    },
+    {
+      "name": "uuid-ossp"
+    }
+  ],
+  "roles": []
+}

@@ -1,0 +1,28 @@
+{
+  "version": "20250409045119",
+  "description": "extensions_test_installation",
+  "steps": [
+    {
+      "type": "create",
+      "objectType": "extension",
+      "name": "pgcrypto",
+      "sql": "CREATE EXTENSION IF NOT EXISTS \"pgcrypto\" VERSION '1.3';",
+      "rollbackSql": "DROP EXTENSION IF EXISTS \"pgcrypto\";"
+    },
+    {
+      "type": "create",
+      "objectType": "extension",
+      "name": "postgis",
+      "sql": "CREATE EXTENSION IF NOT EXISTS \"postgis\";",
+      "rollbackSql": "DROP EXTENSION IF EXISTS \"postgis\";"
+    },
+    {
+      "type": "create",
+      "objectType": "extension",
+      "name": "uuid-ossp",
+      "sql": "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";",
+      "rollbackSql": "DROP EXTENSION IF EXISTS \"uuid-ossp\";"
+    }
+  ],
+  "timestamp": "2025-04-09T04:51:19.028Z"
+}
