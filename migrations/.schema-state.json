@@ -6,7 +6,9 @@
       "values": [
         "ADMIN",
         "USER",
-        "PUBLIC"
+        "PUBLIC",
+        "GUEST",
+        "MODERATOR"
       ]
     },
     {
@@ -16,7 +18,9 @@
         "PROCESSING",
         "SHIPPED",
         "DELIVERED",
-        "CANCELLED"
+        "CANCELLED",
+        "REFUNDED",
+        "ON_HOLD"
       ]
     }
   ],

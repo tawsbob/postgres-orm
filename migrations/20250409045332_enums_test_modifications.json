@@ -1,0 +1,35 @@
+{
+  "version": "20250409045332",
+  "description": "enums_test_modifications",
+  "steps": [
+    {
+      "type": "drop",
+      "objectType": "enum",
+      "name": "UserRole_drop",
+      "sql": "DROP TYPE IF EXISTS \"public\".\"UserRole\" CASCADE;",
+      "rollbackSql": "DO $$ BEGIN\n  CREATE TYPE \"public\".\"UserRole\" AS ENUM ('ADMIN', 'USER', 'PUBLIC');\nEXCEPTION\n  WHEN duplicate_object THEN NULL;\nEND $$;"
+    },
+    {
+      "type": "create",
+      "objectType": "enum",
+      "name": "UserRole",
+      "sql": "DO $$ BEGIN\n  CREATE TYPE \"public\".\"UserRole\" AS ENUM ('ADMIN', 'USER', 'PUBLIC', 'GUEST', 'MODERATOR');\nEXCEPTION\n  WHEN duplicate_object THEN NULL;\nEND $$;",
+      "rollbackSql": "DROP TYPE IF EXISTS \"public\".\"UserRole\" CASCADE;"
+    },
+    {
+      "type": "drop",
+      "objectType": "enum",
+      "name": "OrderStatus_drop",
+      "sql": "DROP TYPE IF EXISTS \"public\".\"OrderStatus\" CASCADE;",
+      "rollbackSql": "DO $$ BEGIN\n  CREATE TYPE \"public\".\"OrderStatus\" AS ENUM ('PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED');\nEXCEPTION\n  WHEN duplicate_object THEN NULL;\nEND $$;"
+    },
+    {
+      "type": "create",
+      "objectType": "enum",
+      "name": "OrderStatus",
+      "sql": "DO $$ BEGIN\n  CREATE TYPE \"public\".\"OrderStatus\" AS ENUM ('PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED', 'ON_HOLD');\nEXCEPTION\n  WHEN duplicate_object THEN NULL;\nEND $$;",
+      "rollbackSql": "DROP TYPE IF EXISTS \"public\".\"OrderStatus\" CASCADE;"
+    }
+  ],
+  "timestamp": "2025-04-09T04:53:32.767Z"
+}
