@@ -2,6 +2,7 @@
 // Extensions Test - Installation of pgcrypto, postgis, and uuid-ossp
 // Enums Test - Creation of enum types
 // Enums Test - Modification (adding new values)
+// Enums Test - Removal of enum types
 
 extension pgcrypto (version='1.3')
 extension postgis
@@ -15,12 +16,4 @@ enum UserRole {
   MODERATOR
 }
 
-enum OrderStatus {
-  PENDING
-  PROCESSING
-  SHIPPED
-  DELIVERED
-  CANCELLED
-  REFUNDED
-  ON_HOLD
-} 
+// OrderStatus enum has been removed for the enum removal test 

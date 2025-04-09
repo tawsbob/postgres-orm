@@ -1,0 +1,14 @@
+{
+  "version": "20250409051146",
+  "description": "enums_test_removal",
+  "steps": [
+    {
+      "type": "drop",
+      "objectType": "enum",
+      "name": "OrderStatus",
+      "sql": "DROP TYPE IF EXISTS \"public\".\"OrderStatus\" CASCADE;",
+      "rollbackSql": "DO $$ BEGIN\n  CREATE TYPE \"public\".\"OrderStatus\" AS ENUM ('PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED', 'ON_HOLD');\nEXCEPTION\n  WHEN duplicate_object THEN NULL;\nEND $$;"
+    }
+  ],
+  "timestamp": "2025-04-09T05:11:46.048Z"
+}
