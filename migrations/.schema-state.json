@@ -219,7 +219,7 @@
       "indexes": []
     },
     {
-      "name": "ProductOrder",
+      "name": "Cart",
       "fields": [
         {
           "name": "id",
