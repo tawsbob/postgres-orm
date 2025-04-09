@@ -12,4 +12,10 @@ Migrations must always follow the sequence, and if one goes wrong, after correct
 
 Before correcting anything, detect the error and explain it to me in detail so that we can agree together on how to solve it.
 
+Some migrations have already been tested, so start where we left off.
+
 after each successful migration commit it and go to the next test.
+
+--- 
+
+RESOVER OR PROBLEMA DE ESTADO NAS MIGRATIOBS
