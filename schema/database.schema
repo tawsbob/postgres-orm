@@ -1,6 +1,21 @@
 // PostgreSQL Schema Definition
-// Starting with a clean schema for migration testing 
+// Extensions Test - Installation of pgcrypto, postgis, and uuid-ossp
+// Enums Test - Creation of enum types
 
 extension pgcrypto (version='1.3')
 extension postgis
-extension uuid-ossp 
+extension uuid-ossp
+
+enum UserRole {
+  ADMIN
+  USER
+  PUBLIC
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+} 

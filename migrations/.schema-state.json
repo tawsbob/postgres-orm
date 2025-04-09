@@ -1,6 +1,25 @@
 {
   "models": [],
-  "enums": [],
+  "enums": [
+    {
+      "name": "UserRole",
+      "values": [
+        "ADMIN",
+        "USER",
+        "PUBLIC"
+      ]
+    },
+    {
+      "name": "OrderStatus",
+      "values": [
+        "PENDING",
+        "PROCESSING",
+        "SHIPPED",
+        "DELIVERED",
+        "CANCELLED"
+      ]
+    }
+  ],
   "extensions": [
     {
       "name": "pgcrypto",

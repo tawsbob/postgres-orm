@@ -1,0 +1,21 @@
+{
+  "version": "20250409045212",
+  "description": "enums_test_creation",
+  "steps": [
+    {
+      "type": "create",
+      "objectType": "enum",
+      "name": "UserRole",
+      "sql": "DO $$ BEGIN\n  CREATE TYPE \"public\".\"UserRole\" AS ENUM ('ADMIN', 'USER', 'PUBLIC');\nEXCEPTION\n  WHEN duplicate_object THEN NULL;\nEND $$;",
+      "rollbackSql": "DROP TYPE IF EXISTS \"public\".\"UserRole\" CASCADE;"
+    },
+    {
+      "type": "create",
+      "objectType": "enum",
+      "name": "OrderStatus",
+      "sql": "DO $$ BEGIN\n  CREATE TYPE \"public\".\"OrderStatus\" AS ENUM ('PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED');\nEXCEPTION\n  WHEN duplicate_object THEN NULL;\nEND $$;",
+      "rollbackSql": "DROP TYPE IF EXISTS \"public\".\"OrderStatus\" CASCADE;"
+    }
+  ],
+  "timestamp": "2025-04-09T04:52:12.279Z"
+}
