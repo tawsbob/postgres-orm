@@ -10,18 +10,6 @@
         "GUEST",
         "MODERATOR"
       ]
-    },
-    {
-      "name": "OrderStatus",
-      "values": [
-        "PENDING",
-        "PROCESSING",
-        "SHIPPED",
-        "DELIVERED",
-        "CANCELLED",
-        "REFUNDED",
-        "ON_HOLD"
-      ]
     }
   ],
   "extensions": [

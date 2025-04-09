@@ -100,7 +100,12 @@ END $$;`;
     if (field.attributes.includes('default')) {
       // Cast default value to enum type if the field is an enum
       if (this.isEnumType(field.type)) {
-        sql += ` DEFAULT '${field.defaultValue}'::"${schemaName}"."${field.type}"`;
+        // Add single quotes around the enum value to ensure it's treated as a string literal
+        const defaultValue = field.defaultValue || '';
+        const defaultValueQuoted = defaultValue.startsWith("'") && defaultValue.endsWith("'")
+          ? defaultValue // Already quoted
+          : `'${defaultValue}'`; 
+        sql += ` DEFAULT ${defaultValueQuoted}::"${schemaName}"."${field.type}"`;
       } else {
         sql += ` DEFAULT ${field.defaultValue}`;
       }
