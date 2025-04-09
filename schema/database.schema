@@ -4,6 +4,7 @@
 // Enums Test - Modification (adding new values)
 // Enums Test - Removal of enum types
 // Models Test - Creation of tables/models
+// Models Test - Table renaming (ProductOrder -> Cart)
 
 extension pgcrypto (version='1.3')
 extension postgis
@@ -64,8 +65,8 @@ model Order {
   updatedAt TIMESTAMP @updatedAt
 }
 
-// Define ProductOrder join table for many-to-many relationship
-model ProductOrder {
+// Renamed ProductOrder to Cart (for table renaming test)
+model Cart {
   id UUID @id @default(gen_random_uuid())
   productId UUID @relation(Product.id, onDelete: CASCADE)
   orderId UUID @relation(Order.id, onDelete: CASCADE)

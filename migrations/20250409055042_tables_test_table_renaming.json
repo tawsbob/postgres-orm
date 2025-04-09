@@ -1,0 +1,21 @@
+{
+  "version": "20250409055042",
+  "description": "tables_test_table_renaming",
+  "steps": [
+    {
+      "type": "create",
+      "objectType": "table",
+      "name": "Cart",
+      "sql": "DO $$ BEGIN\n  CREATE TABLE \"public\".\"Cart\" (\n  \"id\" UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  \"quantity\" INTEGER NOT NULL,\n  \"unitPrice\" DECIMAL(10, 2) NOT NULL,\n  \"createdAt\" TIMESTAMP DEFAULT now() NOT NULL\n);\nEXCEPTION\n  WHEN duplicate_table THEN NULL;\nEND $$;",
+      "rollbackSql": "DO $$ BEGIN\n  -- Revoke all privileges on the table\n  REVOKE ALL PRIVILEGES ON \"public\".\"Cart\" FROM PUBLIC;\n  REVOKE ALL PRIVILEGES ON \"public\".\"Cart\" FROM postgres;\n  \n  -- Drop the table\n  DROP TABLE IF EXISTS \"public\".\"Cart\" CASCADE;\nEXCEPTION\n  WHEN undefined_table THEN NULL;\nEND $$;"
+    },
+    {
+      "type": "drop",
+      "objectType": "table",
+      "name": "ProductOrder",
+      "sql": "DO $$ BEGIN\n  -- Revoke all privileges on the table\n  REVOKE ALL PRIVILEGES ON \"public\".\"ProductOrder\" FROM PUBLIC;\n  REVOKE ALL PRIVILEGES ON \"public\".\"ProductOrder\" FROM postgres;\n  \n  -- Drop the table\n  DROP TABLE IF EXISTS \"public\".\"ProductOrder\" CASCADE;\nEXCEPTION\n  WHEN undefined_table THEN NULL;\nEND $$;",
+      "rollbackSql": "DO $$ BEGIN\n  CREATE TABLE \"public\".\"ProductOrder\" (\n  \"id\" UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  \"quantity\" INTEGER NOT NULL,\n  \"unitPrice\" DECIMAL(10, 2) NOT NULL,\n  \"createdAt\" TIMESTAMP DEFAULT now() NOT NULL\n);\nEXCEPTION\n  WHEN duplicate_table THEN NULL;\nEND $$;"
+    }
+  ],
+  "timestamp": "2025-04-09T05:50:42.785Z"
+}
